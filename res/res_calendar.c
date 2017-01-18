@@ -38,8 +38,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/_private.h"
 #include "asterisk/channel.h"
 #include "asterisk/calendar.h"
@@ -408,7 +406,12 @@ static struct ast_calendar *build_calendar(struct ast_config *cfg, const char *c
 	struct ast_variable *v, *last = NULL;
 	int new_calendar = 0;
 
-	if (!(cal = find_calendar(cat))) {
+	cal = find_calendar(cat);
+	if (cal && cal->fetch_again_at_reload) {
+		/** Create new calendar, old will be removed during reload */
+		cal = unref_calendar(cal);
+	}
+	if (!cal) {
 		new_calendar = 1;
 		if (!(cal = ao2_alloc(sizeof(*cal), calendar_destructor))) {
 			ast_log(LOG_ERROR, "Could not allocate calendar structure. Stopping.\n");
@@ -436,6 +439,7 @@ static struct ast_calendar *build_calendar(struct ast_config *cfg, const char *c
 	cal->refresh = 3600;
 	cal->timeframe = 60;
 	cal->notify_waittime = 30000;
+	cal->fetch_again_at_reload = 0;
 
 	for (v = ast_variable_browse(cfg, cat); v; v = v->next) {
 		if (!strcasecmp(v->name, "autoreminder")) {
@@ -457,6 +461,8 @@ static struct ast_calendar *build_calendar(struct ast_config *cfg, const char *c
 			ast_string_field_set(cal, notify_appdata, v->value);
 		} else if (!strcasecmp(v->name, "refresh")) {
 			cal->refresh = atoi(v->value);
+		} else if (!strcasecmp(v->name, "fetch_again_at_reload")) {
+			cal->fetch_again_at_reload = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "timeframe")) {
 			cal->timeframe = atoi(v->value);
 		} else if (!strcasecmp(v->name, "setvar")) {

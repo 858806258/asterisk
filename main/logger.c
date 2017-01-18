@@ -40,8 +40,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 /* When we include logger.h again it will trample on some stuff in syslog.h, but
  * nothing we care about in here. */
 #include <syslog.h>
@@ -1866,6 +1864,10 @@ static void __attribute__((format(printf, 7, 0))) ast_log_full(int level, int su
 	struct timeval now = ast_tvnow();
 	int res = 0;
 	char datestring[256];
+
+	if (level == __LOG_VERBOSE && ast_opt_remote && ast_opt_exec) {
+		return;
+	}
 
 	if (!(buf = ast_str_thread_get(&log_buf, LOG_BUF_INIT_SIZE)))
 		return;

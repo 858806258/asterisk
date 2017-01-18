@@ -33,8 +33,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/channel.h"
 #include "asterisk/module.h"
 #include "asterisk/pbx.h"
@@ -314,9 +312,14 @@ static struct ast_channel *unicast_rtp_request(const char *type, struct ast_form
 	}
 
 	engine_name = S_COR(ast_test_flag(&opts, OPT_RTP_ENGINE),
-		opt_args[OPT_ARG_RTP_ENGINE], NULL);
+		opt_args[OPT_ARG_RTP_ENGINE], "asterisk");
 
-	ast_ouraddrfor(&address, &local_address);
+	ast_sockaddr_copy(&local_address, &address);
+	if (ast_ouraddrfor(&address, &local_address)) {
+		ast_log(LOG_ERROR, "Could not get our address for sending media to '%s'\n",
+			args.destination);
+		goto failure;
+	}
 	instance = ast_rtp_instance_new(engine_name, NULL, &local_address, NULL);
 	if (!instance) {
 		ast_log(LOG_ERROR,

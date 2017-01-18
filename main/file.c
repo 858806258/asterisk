@@ -29,8 +29,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include <dirent.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
@@ -1093,6 +1091,143 @@ int ast_filerename(const char *filename, const char *filename2, const char *fmt)
 int ast_filecopy(const char *filename, const char *filename2, const char *fmt)
 {
 	return filehelper(filename, filename2, fmt, ACTION_COPY);
+}
+
+static int __ast_file_read_dirs(const char *path, ast_file_on_file on_file,
+				void *obj, int max_depth)
+{
+	DIR *dir;
+	struct dirent *entry;
+	int res;
+
+	if (!(dir = opendir(path))) {
+		ast_log(LOG_ERROR, "Error opening directory - %s: %s\n",
+			path, strerror(errno));
+		return -1;
+	}
+
+	--max_depth;
+
+	res = 0;
+
+	while ((entry = readdir(dir)) != NULL && !errno) {
+		int is_file = 0;
+		int is_dir = 0;
+		RAII_VAR(char *, full_path, NULL, ast_free);
+
+		if (!strcmp(entry->d_name, ".") || !strcmp(entry->d_name, "..")) {
+			continue;
+		}
+
+/*
+ * If the dirent structure has a d_type use it to determine if we are dealing with
+ * a file or directory. Unfortunately if it doesn't have it, or if the type is
+ * unknown, or a link then we'll need to use the stat function instead.
+ */
+#ifdef _DIRENT_HAVE_D_TYPE
+		if (entry->d_type != DT_UNKNOWN && entry->d_type != DT_LNK) {
+			is_file = entry->d_type == DT_REG;
+			is_dir = entry->d_type == DT_DIR;
+		} else
+#endif
+		{
+			struct stat statbuf;
+
+			/*
+			 * Don't use alloca or we risk blowing out the stack if recursing
+			 * into subdirectories.
+			 */
+			full_path = ast_malloc(strlen(path) + strlen(entry->d_name) + 2);
+			if (!full_path) {
+				return -1;
+			}
+			sprintf(full_path, "%s/%s", path, entry->d_name);
+
+			if (stat(full_path, &statbuf)) {
+				ast_log(LOG_ERROR, "Error reading path stats - %s: %s\n",
+					full_path, strerror(errno));
+				/*
+				 * Output an error, but keep going. It could just be
+				 * a broken link and other files could be fine.
+				 */
+				continue;
+			}
+
+			is_file = S_ISREG(statbuf.st_mode);
+			is_dir = S_ISDIR(statbuf.st_mode);
+		}
+
+		if (is_file) {
+			/* If the handler returns non-zero then stop */
+			if ((res = on_file(path, entry->d_name, obj))) {
+				break;
+			}
+			/* Otherwise move on to next item in directory */
+			continue;
+		}
+
+		if (!is_dir) {
+			ast_debug(5, "Skipping %s: not a regular file or directory\n", full_path);
+			continue;
+		}
+
+		/* Only re-curse into sub-directories if not at the max depth */
+		if (max_depth != 0) {
+			if (!full_path) {
+				/* Don't use alloca.  See note above. */
+				full_path = ast_malloc(strlen(path) + strlen(entry->d_name) + 2);
+				if (!full_path) {
+					return -1;
+				}
+				sprintf(full_path, "%s/%s", path, entry->d_name);
+			}
+
+			if ((res = __ast_file_read_dirs(full_path, on_file, obj, max_depth))) {
+				break;
+			}
+		}
+	}
+
+	closedir(dir);
+
+	if (!res && errno) {
+		ast_log(LOG_ERROR, "Error while reading directories - %s: %s\n",
+			path, strerror(errno));
+		res = -1;
+	}
+
+	return res;
+}
+
+#if !defined(__GLIBC__)
+/*!
+ * \brief Lock to hold when iterating over directories.
+ *
+ * Currently, 'readdir' is not required to be thread-safe. In most modern implementations
+ * it should be safe to make concurrent calls into 'readdir' that specify different directory
+ * streams (glibc would be one of these). However, since it is potentially unsafe for some
+ * implementations we'll use our own locking in order to achieve synchronization for those.
+ */
+AST_MUTEX_DEFINE_STATIC(read_dirs_lock);
+#endif
+
+int ast_file_read_dirs(const char *dir_name, ast_file_on_file on_file, void *obj, int max_depth)
+{
+	int res;
+
+	errno = 0;
+
+#if !defined(__GLIBC__)
+	ast_mutex_lock(&read_dirs_lock);
+#endif
+
+	res = __ast_file_read_dirs(dir_name, on_file, obj, max_depth);
+
+#if !defined(__GLIBC__)
+	ast_mutex_unlock(&read_dirs_lock);
+#endif
+
+	return res;
 }
 
 int ast_streamfile(struct ast_channel *chan, const char *filename, const char *preflang)

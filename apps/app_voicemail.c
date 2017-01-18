@@ -101,8 +101,6 @@
 #endif
 #endif
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/paths.h"	/* use ast_config_AST_SPOOL_DIR */
 #include <sys/time.h>
 #include <sys/stat.h>
@@ -12529,6 +12527,7 @@ static int vm_box_exists(struct ast_channel *chan, const char *data)
 		context++;
 	}
 
+	memset(&svm, 0, sizeof(svm));
 	vmu = find_user(&svm, context, args.mbox);
 	if (vmu) {
 		pbx_builtin_setvar_helper(chan, "VMBOXEXISTSSTATUS", "SUCCESS");
@@ -12560,6 +12559,7 @@ static int acf_mailbox_exists(struct ast_channel *chan, const char *cmd, char *a
 		ast_log(AST_LOG_WARNING, "MAILBOX_EXISTS is deprecated.  Please use ${VM_INFO(%s,exists)} instead.\n", args);
 	}
 
+	memset(&svm, 0, sizeof(svm));
 	vmu = find_user(&svm, ast_strlen_zero(arg.context) ? "default" : arg.context, arg.mbox);
 	ast_copy_string(buf, vmu ? "1" : "0", len);
 	free_user(vmu);

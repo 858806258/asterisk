@@ -84,6 +84,9 @@ extern "C" {
 /*! First dynamic RTP payload type */
 #define AST_RTP_PT_FIRST_DYNAMIC 96
 
+/*! Last reassignable RTP payload type */
+#define AST_RTP_PT_LAST_REASSIGN 63
+
 /*! Maximum number of generations */
 #define AST_RED_MAX_GENERATION 5
 
@@ -370,7 +373,7 @@ struct ast_rtp_instance_stats {
 };
 
 #define AST_RTP_STAT_SET(current_stat, combined, placement, value) \
-if (stat == current_stat || stat == AST_RTP_INSTANCE_STAT_ALL || (combined >= 0 && combined == current_stat)) { \
+if (stat == current_stat || stat == AST_RTP_INSTANCE_STAT_ALL || (combined >= 0 && combined == stat)) { \
 placement = value; \
 if (stat == current_stat) { \
 return 0; \
@@ -378,7 +381,7 @@ return 0; \
 }
 
 #define AST_RTP_STAT_STRCPY(current_stat, combined, placement, value) \
-if (stat == current_stat || stat == AST_RTP_INSTANCE_STAT_ALL || (combined >= 0 && combined == current_stat)) { \
+if (stat == current_stat || stat == AST_RTP_INSTANCE_STAT_ALL || (combined >= 0 && combined == stat)) { \
 	ast_copy_string(placement, value, sizeof(placement)); \
 	if (stat == current_stat) { \
 		return 0; \

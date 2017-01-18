@@ -29,8 +29,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/_private.h"
 #include "asterisk/paths.h"	/* use ast_config_AST_SYSTEM_NAME */
 #include <ctype.h>
@@ -253,6 +251,8 @@ struct ast_exten {
 	struct ast_hashtab *peer_table;    /*!< Priorities list in hashtab form -- only on the head of the peer list */
 	struct ast_hashtab *peer_label_table; /*!< labeled priorities in the peers -- only on the head of the peer list */
 	const char *registrar;		/*!< Registrar */
+	const char *registrar_file;     /*!< File name used to register extension */
+	int registrar_line;             /*!< Line number the extension was registered in text */
 	struct ast_exten *next;		/*!< Extension with a greater ID */
 	char stuff[0];
 };
@@ -652,7 +652,8 @@ static int ast_add_extension_nolock(const char *context, int replace, const char
 static int ast_add_extension2_lockopt(struct ast_context *con,
 	int replace, const char *extension, int priority, const char *label, const char *callerid,
 	const char *application, void *data, void (*datad)(void *),
-	const char *registrar, int lock_context);
+	const char *registrar, const char *registrar_file, int registrar_line,
+	int lock_context);
 static struct ast_context *find_context_locked(const char *context);
 static struct ast_context *find_context(const char *context);
 static void get_device_state_causing_channels(struct ao2_container *c);
@@ -5440,6 +5441,21 @@ static void print_ext(struct ast_exten *e, char * buf, int buflen)
 	}
 }
 
+/*! \brief Writes CLI output of a single extension for show dialplan */
+static void show_dialplan_helper_extension_output(int fd, char *buf1, char *buf2, struct ast_exten *exten)
+{
+	if (ast_get_extension_registrar_file(exten)) {
+		ast_cli(fd, "  %-17s %-45s [%s:%d]\n",
+			buf1, buf2,
+			ast_get_extension_registrar_file(exten),
+			ast_get_extension_registrar_line(exten));
+		return;
+	}
+
+	ast_cli(fd, "  %-17s %-45s [%s]\n",
+		buf1, buf2, ast_get_extension_registrar(exten));
+}
+
 /* XXX not verified */
 static int show_dialplan_helper(int fd, const char *context, const char *exten, struct dialplan_counters *dpc, const struct ast_include *rinclude, int includecount, const char *includes[])
 {
@@ -5517,8 +5533,7 @@ static int show_dialplan_helper(int fd, const char *context, const char *exten, 
 
 			print_ext(e, buf2, sizeof(buf2));
 
-			ast_cli(fd, "  %-17s %-45s [%s]\n", buf, buf2,
-				ast_get_extension_registrar(e));
+			show_dialplan_helper_extension_output(fd, buf, buf2, e);
 
 			dpc->total_exten++;
 			/* walk next extension peers */
@@ -5532,8 +5547,7 @@ static int show_dialplan_helper(int fd, const char *context, const char *exten, 
 					buf[0] = '\0';
 				print_ext(p, buf2, sizeof(buf2));
 
-				ast_cli(fd,"  %-17s %-45s [%s]\n", buf, buf2,
-					ast_get_extension_registrar(p));
+				show_dialplan_helper_extension_output(fd, buf, buf2, p);
 			}
 		}
 
@@ -6358,7 +6372,8 @@ static void context_merge(struct ast_context **extcontexts, struct ast_hashtab *
 				dupdstr = ast_strdup(prio_item->data);
 
 				res1 = ast_add_extension2(new, 0, prio_item->name, prio_item->priority, prio_item->label,
-										  prio_item->matchcid ? prio_item->cidmatch : NULL, prio_item->app, dupdstr, ast_free_ptr, prio_item->registrar);
+										  prio_item->matchcid ? prio_item->cidmatch : NULL, prio_item->app, dupdstr, ast_free_ptr, prio_item->registrar,
+										  prio_item->registrar_file, prio_item->registrar_line);
 				if (!res1 && new_exten_item && new_prio_item){
 					ast_verb(3,"Dropping old dialplan item %s/%s/%d [%s(%s)] (registrar=%s) due to conflict with new dialplan\n",
 							context->name, prio_item->name, prio_item->priority, prio_item->app, (char*)prio_item->data, prio_item->registrar);
@@ -6869,7 +6884,7 @@ static int ast_add_extension_nolock(const char *context, int replace, const char
 	c = find_context(context);
 	if (c) {
 		ret = ast_add_extension2_lockopt(c, replace, extension, priority, label, callerid,
-			application, data, datad, registrar, 1);
+			application, data, datad, registrar, NULL, 0, 1);
 	}
 
 	return ret;
@@ -6889,7 +6904,7 @@ int ast_add_extension(const char *context, int replace, const char *extension,
 	c = find_context_locked(context);
 	if (c) {
 		ret = ast_add_extension2(c, replace, extension, priority, label, callerid,
-			application, data, datad, registrar);
+			application, data, datad, registrar, NULL, 0);
 		ast_unlock_contexts();
 	}
 
@@ -7192,19 +7207,19 @@ static int add_priority(struct ast_context *con, struct ast_exten *tmp,
 int ast_add_extension2(struct ast_context *con,
 	int replace, const char *extension, int priority, const char *label, const char *callerid,
 	const char *application, void *data, void (*datad)(void *),
-	const char *registrar)
+	const char *registrar, const char *registrar_file, int registrar_line)
 {
 	return ast_add_extension2_lockopt(con, replace, extension, priority, label, callerid,
-		application, data, datad, registrar, 1);
+		application, data, datad, registrar, registrar_file, registrar_line, 1);
 }
 
 int ast_add_extension2_nolock(struct ast_context *con,
 	int replace, const char *extension, int priority, const char *label, const char *callerid,
 	const char *application, void *data, void (*datad)(void *),
-	const char *registrar)
+	const char *registrar, const char *registrar_file, int registrar_line)
 {
 	return ast_add_extension2_lockopt(con, replace, extension, priority, label, callerid,
-		application, data, datad, registrar, 0);
+		application, data, datad, registrar, registrar_file, registrar_line, 0);
 }
 
 
@@ -7218,7 +7233,7 @@ int ast_add_extension2_nolock(struct ast_context *con,
 static int ast_add_extension2_lockopt(struct ast_context *con,
 	int replace, const char *extension, int priority, const char *label, const char *callerid,
 	const char *application, void *data, void (*datad)(void *),
-	const char *registrar, int lock_context)
+	const char *registrar, const char *registrar_file, int registrar_line, int lock_context)
 {
 	/*
 	 * Sort extensions (or patterns) according to the rules indicated above.
@@ -7289,6 +7304,9 @@ static int ast_add_extension2_lockopt(struct ast_context *con,
 	} else {
 		length ++;	/* just the '\0' */
 	}
+	if (registrar_file) {
+		length += strlen(registrar_file) + 1;
+	}
 
 	/* Be optimistic:  Build the extension structure first */
 	if (!(tmp = ast_calloc(1, length)))
@@ -7328,12 +7346,22 @@ static int ast_add_extension2_lockopt(struct ast_context *con,
 		*p++ = '\0';
 		tmp->matchcid = AST_EXT_MATCHCID_OFF;
 	}
+
+	if (registrar_file) {
+		tmp->registrar_file = p;
+		strcpy(p, registrar_file);
+		p += strlen(registrar_file) + 1;
+	} else {
+		tmp->registrar_file = NULL;
+	}
+
 	tmp->app = p;
 	strcpy(p, application);
 	tmp->parent = con;
 	tmp->data = data;
 	tmp->datad = datad;
 	tmp->registrar = registrar;
+	tmp->registrar_line = registrar_line;
 
 	if (lock_context) {
 		ast_wrlock_context(con);
@@ -7633,11 +7661,13 @@ static int pbx_outgoing_attempt(const char *type, struct ast_format_cap *cap,
 	const char *app, const char *appdata, int *reason, int synchronous,
 	const char *cid_num, const char *cid_name, struct ast_variable *vars,
 	const char *account, struct ast_channel **locked_channel, int early_media,
-	const struct ast_assigned_ids *assignedids)
+	const struct ast_assigned_ids *assignedids, const char *predial_callee)
 {
 	RAII_VAR(struct pbx_outgoing *, outgoing, NULL, ao2_cleanup);
 	struct ast_channel *dialed;
 	pthread_t thread;
+	char tmp_cid_name[128];
+	char tmp_cid_num[128];
 
 	outgoing = ao2_alloc(sizeof(*outgoing), pbx_outgoing_destroy);
 	if (!outgoing) {
@@ -7664,6 +7694,11 @@ static int pbx_outgoing_attempt(const char *type, struct ast_format_cap *cap,
 
 	ast_dial_set_global_timeout(outgoing->dial, timeout);
 
+	if (!ast_strlen_zero(predial_callee)) {
+		/* note casting to void * here to suppress compiler warning message (passing const to non-const function) */
+		ast_dial_option_global_enable(outgoing->dial, AST_DIAL_OPTION_PREDIAL, (void *)predial_callee);
+	}
+
 	if (ast_dial_prerun(outgoing->dial, NULL, cap)) {
 		if (synchronous && reason) {
 			*reason = pbx_dial_reason(AST_DIAL_RESULT_FAILED,
@@ -7688,6 +7723,25 @@ static int pbx_outgoing_attempt(const char *type, struct ast_format_cap *cap,
 		ast_channel_stage_snapshot_done(dialed);
 	}
 	ast_set_flag(ast_channel_flags(dialed), AST_FLAG_ORIGINATED);
+
+	if (!ast_strlen_zero(predial_callee)) {
+		char *tmp = NULL;
+		/*
+		 * The predial sub routine may have set callerid so set this into the new channel
+		 * Note... cid_num and cid_name parameters to this function will always be NULL if
+		 * predial_callee is non-NULL so we are not overwriting anything here.
+		 */
+		tmp = S_COR(ast_channel_caller(dialed)->id.number.valid, ast_channel_caller(dialed)->id.number.str, NULL);
+		if (tmp) {
+			ast_copy_string(tmp_cid_num, tmp, sizeof(tmp_cid_num));
+			cid_num = tmp_cid_num;
+		}
+		tmp = S_COR(ast_channel_caller(dialed)->id.name.valid, ast_channel_caller(dialed)->id.name.str, NULL);
+		if (tmp) {
+			ast_copy_string(tmp_cid_name, tmp, sizeof(tmp_cid_name));
+			cid_name = tmp_cid_name;
+		}
+	}
 	ast_channel_unlock(dialed);
 
 	if (!ast_strlen_zero(cid_num) || !ast_strlen_zero(cid_name)) {
@@ -7796,6 +7850,16 @@ int ast_pbx_outgoing_exten(const char *type, struct ast_format_cap *cap, const c
 	const char *account, struct ast_channel **locked_channel, int early_media,
 	const struct ast_assigned_ids *assignedids)
 {
+	return ast_pbx_outgoing_exten_predial(type, cap, addr, timeout, context, exten, priority, reason,
+		synchronous, cid_num, cid_name, vars, account, locked_channel, early_media, assignedids, NULL);
+}
+
+int ast_pbx_outgoing_exten_predial(const char *type, struct ast_format_cap *cap, const char *addr,
+	int timeout, const char *context, const char *exten, int priority, int *reason,
+	int synchronous, const char *cid_num, const char *cid_name, struct ast_variable *vars,
+	const char *account, struct ast_channel **locked_channel, int early_media,
+	const struct ast_assigned_ids *assignedids, const char *predial_callee)
+{
 	int res;
 	int my_reason;
 
@@ -7809,7 +7873,7 @@ int ast_pbx_outgoing_exten(const char *type, struct ast_format_cap *cap, const c
 
 	res = pbx_outgoing_attempt(type, cap, addr, timeout, context, exten, priority,
 		NULL, NULL, reason, synchronous, cid_num, cid_name, vars, account, locked_channel,
-		early_media, assignedids);
+		early_media, assignedids, predial_callee);
 
 	if (res < 0 /* Call failed to get connected for some reason. */
 		&& 1 < synchronous
@@ -7850,6 +7914,16 @@ int ast_pbx_outgoing_app(const char *type, struct ast_format_cap *cap, const cha
 	const char *account, struct ast_channel **locked_channel,
 	const struct ast_assigned_ids *assignedids)
 {
+	return ast_pbx_outgoing_app_predial(type, cap, addr, timeout, app, appdata, reason, synchronous,
+		cid_num, cid_name, vars, account, locked_channel, assignedids, NULL);
+}
+
+int ast_pbx_outgoing_app_predial(const char *type, struct ast_format_cap *cap, const char *addr,
+	int timeout, const char *app, const char *appdata, int *reason, int synchronous,
+	const char *cid_num, const char *cid_name, struct ast_variable *vars,
+	const char *account, struct ast_channel **locked_channel,
+	const struct ast_assigned_ids *assignedids, const char *predial_callee)
+{
 	if (reason) {
 		*reason = 0;
 	}
@@ -7862,7 +7936,7 @@ int ast_pbx_outgoing_app(const char *type, struct ast_format_cap *cap, const cha
 
 	return pbx_outgoing_attempt(type, cap, addr, timeout, NULL, NULL, 0, app, appdata,
 		reason, synchronous, cid_num, cid_name, vars, account, locked_channel, 0,
-		assignedids);
+		assignedids, predial_callee);
 }
 
 /* this is the guts of destroying a context --
@@ -8439,6 +8513,16 @@ const char *ast_get_context_registrar(struct ast_context *c)
 const char *ast_get_extension_registrar(struct ast_exten *e)
 {
 	return e ? e->registrar : NULL;
+}
+
+const char *ast_get_extension_registrar_file(struct ast_exten *e)
+{
+	return e ? e->registrar_file : NULL;
+}
+
+int ast_get_extension_registrar_line(struct ast_exten *e)
+{
+	return e ? e->registrar_line : 0;
 }
 
 int ast_get_extension_matchcid(struct ast_exten *e)

@@ -31,8 +31,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -201,6 +199,8 @@ static void start_automonitor(struct ast_bridge_channel *bridge_channel, struct 
 			ast_channel_name(bridge_channel->chan));
 		return;
 	}
+
+	ast_monitor_setjoinfiles(peer_chan, 1);
 
 	if (features_cfg && !ast_strlen_zero(features_cfg->courtesytone)) {
 		ast_bridge_channel_queue_playfile(bridge_channel, NULL, features_cfg->courtesytone, NULL);

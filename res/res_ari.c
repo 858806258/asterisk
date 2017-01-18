@@ -112,6 +112,9 @@
 				<configOption name="allowed_origins">
 					<synopsis>Comma separated list of allowed origins, for Cross-Origin Resource Sharing. May be set to * to allow all origins.</synopsis>
 				</configOption>
+				<configOption name="channelvars">
+					<synopsis>Comma separated list of channel variables to display in channel json.</synopsis>
+				</configOption>
 			</configObject>
 
 			<configObject name="user">
@@ -139,8 +142,6 @@
 ***/
 
 #include "asterisk.h"
-
-ASTERISK_REGISTER_FILE()
 
 #include "ari/internal.h"
 #include "asterisk/ari.h"

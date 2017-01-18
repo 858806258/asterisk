@@ -33,8 +33,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/_private.h"
 #include "asterisk/paths.h"	/* use ast_config_AST_MODULE_DIR */
 #include <dirent.h>
@@ -609,7 +607,7 @@ static struct ast_module *load_dynamic_module(const char *resource_in, unsigned 
 
 #endif
 
-void ast_module_shutdown(void)
+int modules_shutdown(void)
 {
 	struct ast_module *mod;
 	int somethingchanged = 1, final = 0;
@@ -657,7 +655,10 @@ void ast_module_shutdown(void)
 		}
 	} while (somethingchanged && !final);
 
+	final = AST_DLLIST_EMPTY(&module_list);
 	AST_DLLIST_UNLOCK(&module_list);
+
+	return !final;
 }
 
 int ast_unload_resource(const char *resource_name, enum ast_module_unload_mode force)

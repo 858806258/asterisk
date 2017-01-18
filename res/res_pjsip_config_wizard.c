@@ -39,8 +39,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include <regex.h>
 #include <pjsip.h>
 
@@ -463,7 +461,7 @@ static int add_extension(struct ast_context *context, const char *exten,
 	}
 
 	if (ast_add_extension2_nolock(context, 0, exten, priority, NULL, NULL,
-			app, data, free_ptr, BASE_REGISTRAR)) {
+			app, data, free_ptr, BASE_REGISTRAR, NULL, 0)) {
 		ast_free(data);
 		return -1;
 	}
@@ -989,7 +987,7 @@ static int wizard_apply_handler(const struct ast_sorcery *sorcery, struct object
 		rc = handle_registrations(sorcery, otw, wiz, &remote_hosts_vector);
 	}
 
-	AST_VECTOR_REMOVE_CMP_UNORDERED(&remote_hosts_vector, NULL, NOT_EQUALS, ast_free);
+	AST_VECTOR_REMOVE_ALL_CMP_UNORDERED(&remote_hosts_vector, NULL, NOT_EQUALS, ast_free);
 	AST_VECTOR_FREE(&remote_hosts_vector);
 
 	ast_debug(4, "%s handler complete.  rc: %d\n", otw->object_type, rc);
@@ -1293,7 +1291,7 @@ static int unload_module(void)
 {
 	ast_cli_unregister_multiple(config_wizard_cli, ARRAY_LEN(config_wizard_cli));
 	ast_sorcery_global_observer_remove(&global_observer);
-	AST_VECTOR_REMOVE_CMP_UNORDERED(&object_type_wizards, NULL, NOT_EQUALS, OTW_DELETE_CB);
+	AST_VECTOR_REMOVE_ALL_CMP_UNORDERED(&object_type_wizards, NULL, NOT_EQUALS, OTW_DELETE_CB);
 	AST_VECTOR_RW_FREE(&object_type_wizards);
 
 	return 0;

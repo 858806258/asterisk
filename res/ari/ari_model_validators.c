@@ -29,8 +29,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/logger.h"
 #include "asterisk/module.h"
 #include "ari_model_validators.h"
@@ -1053,6 +1051,15 @@ int ast_ari_validate_channel(struct ast_json *json)
 				res = 0;
 			}
 		} else
+		if (strcmp("channelvars", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_object(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI Channel field channelvars failed validation\n");
+				res = 0;
+			}
+		} else
 		if (strcmp("connected", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
 			has_connected = 1;
@@ -1357,6 +1364,24 @@ int ast_ari_validate_bridge(struct ast_json *json)
 				ast_json_object_iter_value(iter));
 			if (!prop_is_valid) {
 				ast_log(LOG_ERROR, "ARI Bridge field technology failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("video_mode", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI Bridge field video_mode failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("video_source_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI Bridge field video_source_id failed validation\n");
 				res = 0;
 			}
 		} else
@@ -1941,6 +1966,15 @@ int ast_ari_validate_application_replaced(struct ast_json *json)
 	int has_application = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("asterisk_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ApplicationReplaced field asterisk_id failed validation\n");
+				res = 0;
+			}
+		} else
 		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
 			has_type = 1;
@@ -2009,6 +2043,15 @@ int ast_ari_validate_bridge_attended_transfer(struct ast_json *json)
 	int has_transferer_second_leg = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("asterisk_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI BridgeAttendedTransfer field asterisk_id failed validation\n");
+				res = 0;
+			}
+		} else
 		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
 			has_type = 1;
@@ -2251,6 +2294,15 @@ int ast_ari_validate_bridge_blind_transfer(struct ast_json *json)
 	int has_result = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("asterisk_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI BridgeBlindTransfer field asterisk_id failed validation\n");
+				res = 0;
+			}
+		} else
 		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
 			has_type = 1;
@@ -2417,6 +2469,15 @@ int ast_ari_validate_bridge_created(struct ast_json *json)
 	int has_bridge = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("asterisk_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI BridgeCreated field asterisk_id failed validation\n");
+				res = 0;
+			}
+		} else
 		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
 			has_type = 1;
@@ -2496,6 +2557,15 @@ int ast_ari_validate_bridge_destroyed(struct ast_json *json)
 	int has_bridge = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("asterisk_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI BridgeDestroyed field asterisk_id failed validation\n");
+				res = 0;
+			}
+		} else
 		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
 			has_type = 1;
@@ -2576,6 +2646,15 @@ int ast_ari_validate_bridge_merged(struct ast_json *json)
 	int has_bridge_from = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("asterisk_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI BridgeMerged field asterisk_id failed validation\n");
+				res = 0;
+			}
+		} else
 		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
 			has_type = 1;
@@ -2661,6 +2740,103 @@ ari_validator ast_ari_validate_bridge_merged_fn(void)
 	return ast_ari_validate_bridge_merged;
 }
 
+int ast_ari_validate_bridge_video_source_changed(struct ast_json *json)
+{
+	int res = 1;
+	struct ast_json_iter *iter;
+	int has_type = 0;
+	int has_application = 0;
+	int has_bridge = 0;
+
+	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("asterisk_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI BridgeVideoSourceChanged field asterisk_id failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_type = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI BridgeVideoSourceChanged field type failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("application", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_application = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI BridgeVideoSourceChanged field application failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_date(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI BridgeVideoSourceChanged field timestamp failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("bridge", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_bridge = 1;
+			prop_is_valid = ast_ari_validate_bridge(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI BridgeVideoSourceChanged field bridge failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("old_video_source_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI BridgeVideoSourceChanged field old_video_source_id failed validation\n");
+				res = 0;
+			}
+		} else
+		{
+			ast_log(LOG_ERROR,
+				"ARI BridgeVideoSourceChanged has undocumented field %s\n",
+				ast_json_object_iter_key(iter));
+			res = 0;
+		}
+	}
+
+	if (!has_type) {
+		ast_log(LOG_ERROR, "ARI BridgeVideoSourceChanged missing required field type\n");
+		res = 0;
+	}
+
+	if (!has_application) {
+		ast_log(LOG_ERROR, "ARI BridgeVideoSourceChanged missing required field application\n");
+		res = 0;
+	}
+
+	if (!has_bridge) {
+		ast_log(LOG_ERROR, "ARI BridgeVideoSourceChanged missing required field bridge\n");
+		res = 0;
+	}
+
+	return res;
+}
+
+ari_validator ast_ari_validate_bridge_video_source_changed_fn(void)
+{
+	return ast_ari_validate_bridge_video_source_changed;
+}
+
 int ast_ari_validate_channel_caller_id(struct ast_json *json)
 {
 	int res = 1;
@@ -2672,6 +2848,15 @@ int ast_ari_validate_channel_caller_id(struct ast_json *json)
 	int has_channel = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("asterisk_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelCallerId field asterisk_id failed validation\n");
+				res = 0;
+			}
+		} else
 		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
 			has_type = 1;
@@ -2781,6 +2966,15 @@ int ast_ari_validate_channel_connected_line(struct ast_json *json)
 	int has_channel = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("asterisk_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelConnectedLine field asterisk_id failed validation\n");
+				res = 0;
+			}
+		} else
 		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
 			has_type = 1;
@@ -2860,6 +3054,15 @@ int ast_ari_validate_channel_created(struct ast_json *json)
 	int has_channel = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("asterisk_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelCreated field asterisk_id failed validation\n");
+				res = 0;
+			}
+		} else
 		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
 			has_type = 1;
@@ -2941,6 +3144,15 @@ int ast_ari_validate_channel_destroyed(struct ast_json *json)
 	int has_channel = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("asterisk_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelDestroyed field asterisk_id failed validation\n");
+				res = 0;
+			}
+		} else
 		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
 			has_type = 1;
@@ -3052,6 +3264,15 @@ int ast_ari_validate_channel_dialplan(struct ast_json *json)
 	int has_dialplan_app_data = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("asterisk_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelDialplan field asterisk_id failed validation\n");
+				res = 0;
+			}
+		} else
 		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
 			has_type = 1;
@@ -3163,6 +3384,15 @@ int ast_ari_validate_channel_dtmf_received(struct ast_json *json)
 	int has_duration_ms = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("asterisk_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelDtmfReceived field asterisk_id failed validation\n");
+				res = 0;
+			}
+		} else
 		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
 			has_type = 1;
@@ -3272,6 +3502,15 @@ int ast_ari_validate_channel_entered_bridge(struct ast_json *json)
 	int has_bridge = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("asterisk_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelEnteredBridge field asterisk_id failed validation\n");
+				res = 0;
+			}
+		} else
 		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
 			has_type = 1;
@@ -3360,6 +3599,15 @@ int ast_ari_validate_channel_hangup_request(struct ast_json *json)
 	int has_channel = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("asterisk_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelHangupRequest field asterisk_id failed validation\n");
+				res = 0;
+			}
+		} else
 		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
 			has_type = 1;
@@ -3457,6 +3705,15 @@ int ast_ari_validate_channel_hold(struct ast_json *json)
 	int has_channel = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("asterisk_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelHold field asterisk_id failed validation\n");
+				res = 0;
+			}
+		} else
 		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
 			has_type = 1;
@@ -3546,6 +3803,15 @@ int ast_ari_validate_channel_left_bridge(struct ast_json *json)
 	int has_channel = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("asterisk_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelLeftBridge field asterisk_id failed validation\n");
+				res = 0;
+			}
+		} else
 		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
 			has_type = 1;
@@ -3640,6 +3906,15 @@ int ast_ari_validate_channel_state_change(struct ast_json *json)
 	int has_channel = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("asterisk_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelStateChange field asterisk_id failed validation\n");
+				res = 0;
+			}
+		} else
 		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
 			has_type = 1;
@@ -3720,6 +3995,15 @@ int ast_ari_validate_channel_talking_finished(struct ast_json *json)
 	int has_duration = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("asterisk_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelTalkingFinished field asterisk_id failed validation\n");
+				res = 0;
+			}
+		} else
 		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
 			has_type = 1;
@@ -3814,6 +4098,15 @@ int ast_ari_validate_channel_talking_started(struct ast_json *json)
 	int has_channel = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("asterisk_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelTalkingStarted field asterisk_id failed validation\n");
+				res = 0;
+			}
+		} else
 		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
 			has_type = 1;
@@ -3893,6 +4186,15 @@ int ast_ari_validate_channel_unhold(struct ast_json *json)
 	int has_channel = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("asterisk_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelUnhold field asterisk_id failed validation\n");
+				res = 0;
+			}
+		} else
 		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
 			has_type = 1;
@@ -3973,6 +4275,15 @@ int ast_ari_validate_channel_userevent(struct ast_json *json)
 	int has_userevent = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("asterisk_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelUserevent field asterisk_id failed validation\n");
+				res = 0;
+			}
+		} else
 		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
 			has_type = 1;
@@ -4095,6 +4406,15 @@ int ast_ari_validate_channel_varset(struct ast_json *json)
 	int has_variable = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("asterisk_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelVarset field asterisk_id failed validation\n");
+				res = 0;
+			}
+		} else
 		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
 			has_type = 1;
@@ -4278,6 +4598,15 @@ int ast_ari_validate_contact_status_change(struct ast_json *json)
 	int has_endpoint = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("asterisk_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ContactStatusChange field asterisk_id failed validation\n");
+				res = 0;
+			}
+		} else
 		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
 			has_type = 1;
@@ -4372,6 +4701,15 @@ int ast_ari_validate_device_state_changed(struct ast_json *json)
 	int has_device_state = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("asterisk_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI DeviceStateChanged field asterisk_id failed validation\n");
+				res = 0;
+			}
+		} else
 		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
 			has_type = 1;
@@ -4452,6 +4790,15 @@ int ast_ari_validate_dial(struct ast_json *json)
 	int has_peer = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("asterisk_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI Dial field asterisk_id failed validation\n");
+				res = 0;
+			}
+		} else
 		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
 			has_type = 1;
@@ -4582,6 +4929,15 @@ int ast_ari_validate_endpoint_state_change(struct ast_json *json)
 	int has_endpoint = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("asterisk_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI EndpointStateChange field asterisk_id failed validation\n");
+				res = 0;
+			}
+		} else
 		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
 			has_type = 1;
@@ -4687,6 +5043,9 @@ int ast_ari_validate_event(struct ast_json *json)
 	if (strcmp("BridgeMerged", discriminator) == 0) {
 		return ast_ari_validate_bridge_merged(json);
 	} else
+	if (strcmp("BridgeVideoSourceChanged", discriminator) == 0) {
+		return ast_ari_validate_bridge_video_source_changed(json);
+	} else
 	if (strcmp("ChannelCallerId", discriminator) == 0) {
 		return ast_ari_validate_channel_caller_id(json);
 	} else
@@ -4784,6 +5143,15 @@ int ast_ari_validate_event(struct ast_json *json)
 	}
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("asterisk_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI Event field asterisk_id failed validation\n");
+				res = 0;
+			}
+		} else
 		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
 			has_type = 1;
@@ -4872,6 +5240,9 @@ int ast_ari_validate_message(struct ast_json *json)
 	} else
 	if (strcmp("BridgeMerged", discriminator) == 0) {
 		return ast_ari_validate_bridge_merged(json);
+	} else
+	if (strcmp("BridgeVideoSourceChanged", discriminator) == 0) {
+		return ast_ari_validate_bridge_video_source_changed(json);
 	} else
 	if (strcmp("ChannelCallerId", discriminator) == 0) {
 		return ast_ari_validate_channel_caller_id(json);
@@ -4976,6 +5347,15 @@ int ast_ari_validate_message(struct ast_json *json)
 	}
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("asterisk_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI Message field asterisk_id failed validation\n");
+				res = 0;
+			}
+		} else
 		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
 			has_type = 1;
@@ -5015,6 +5395,15 @@ int ast_ari_validate_missing_params(struct ast_json *json)
 	int has_params = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("asterisk_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI MissingParams field asterisk_id failed validation\n");
+				res = 0;
+			}
+		} else
 		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
 			has_type = 1;
@@ -5146,6 +5535,15 @@ int ast_ari_validate_peer_status_change(struct ast_json *json)
 	int has_peer = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("asterisk_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI PeerStatusChange field asterisk_id failed validation\n");
+				res = 0;
+			}
+		} else
 		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
 			has_type = 1;
@@ -5240,6 +5638,15 @@ int ast_ari_validate_playback_continuing(struct ast_json *json)
 	int has_playback = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("asterisk_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI PlaybackContinuing field asterisk_id failed validation\n");
+				res = 0;
+			}
+		} else
 		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
 			has_type = 1;
@@ -5319,6 +5726,15 @@ int ast_ari_validate_playback_finished(struct ast_json *json)
 	int has_playback = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("asterisk_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI PlaybackFinished field asterisk_id failed validation\n");
+				res = 0;
+			}
+		} else
 		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
 			has_type = 1;
@@ -5398,6 +5814,15 @@ int ast_ari_validate_playback_started(struct ast_json *json)
 	int has_playback = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("asterisk_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI PlaybackStarted field asterisk_id failed validation\n");
+				res = 0;
+			}
+		} else
 		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
 			has_type = 1;
@@ -5477,6 +5902,15 @@ int ast_ari_validate_recording_failed(struct ast_json *json)
 	int has_recording = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("asterisk_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RecordingFailed field asterisk_id failed validation\n");
+				res = 0;
+			}
+		} else
 		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
 			has_type = 1;
@@ -5556,6 +5990,15 @@ int ast_ari_validate_recording_finished(struct ast_json *json)
 	int has_recording = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("asterisk_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RecordingFinished field asterisk_id failed validation\n");
+				res = 0;
+			}
+		} else
 		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
 			has_type = 1;
@@ -5635,6 +6078,15 @@ int ast_ari_validate_recording_started(struct ast_json *json)
 	int has_recording = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("asterisk_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RecordingStarted field asterisk_id failed validation\n");
+				res = 0;
+			}
+		} else
 		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
 			has_type = 1;
@@ -5714,6 +6166,15 @@ int ast_ari_validate_stasis_end(struct ast_json *json)
 	int has_channel = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("asterisk_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI StasisEnd field asterisk_id failed validation\n");
+				res = 0;
+			}
+		} else
 		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
 			has_type = 1;
@@ -5794,6 +6255,15 @@ int ast_ari_validate_stasis_start(struct ast_json *json)
 	int has_channel = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("asterisk_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI StasisStart field asterisk_id failed validation\n");
+				res = 0;
+			}
+		} else
 		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
 			has_type = 1;
@@ -5898,6 +6368,15 @@ int ast_ari_validate_text_message_received(struct ast_json *json)
 	int has_message = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("asterisk_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI TextMessageReceived field asterisk_id failed validation\n");
+				res = 0;
+			}
+		} else
 		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
 			has_type = 1;

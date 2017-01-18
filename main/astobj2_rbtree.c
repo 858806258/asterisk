@@ -23,8 +23,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/_private.h"
 #include "asterisk/astobj2.h"
 #include "asterisk/utils.h"
@@ -858,7 +856,9 @@ static void rb_ao2_node_destructor(void *v_doomed)
 		 * same node.
 		 */
 		my_container = (struct ao2_container_rbtree *) doomed->common.my_container;
-		ast_assert(is_ao2_object(my_container));
+#ifdef AST_DEVMODE
+		is_ao2_object(my_container);
+#endif
 
 		__adjust_lock(my_container, AO2_LOCK_REQ_WRLOCK, 1);
 

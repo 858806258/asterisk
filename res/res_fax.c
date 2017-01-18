@@ -65,8 +65,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/io.h"
 #include "asterisk/file.h"
 #include "asterisk/logger.h"
@@ -1415,11 +1413,13 @@ static int report_fax_status(struct ast_channel *chan, struct ast_fax_session_de
 	}
 
 	json_object = ast_json_pack("{s: s, s: s, s: s, s: s, s: o}",
-			"type", "status",
-			"operation", (details->caps & AST_FAX_TECH_GATEWAY) ? "gateway" : (details->caps & AST_FAX_TECH_RECEIVE) ? "receive" : "send",
-			"status", status,
-			"local_station_id", details->localstationid,
-			"filenames", json_filenames);
+		"type", "status",
+		"operation", (details->caps & AST_FAX_TECH_GATEWAY)
+			? "gateway"
+			: (details->caps & AST_FAX_TECH_RECEIVE) ? "receive" : "send",
+		"status", status,
+		"local_station_id", AST_JSON_UTF8_VALIDATE(details->localstationid),
+		"filenames", json_filenames);
 	if (!json_object) {
 		return -1;
 	}
@@ -1599,6 +1599,13 @@ static int generic_fax_exec(struct ast_channel *chan, struct ast_fax_session_det
 	struct timeval start;
 
 	chancount = 1;
+
+	/* Make sure one or the other is set to avoid race condition */
+	if (t38negotiated) {
+		details->caps |= AST_FAX_TECH_T38;
+	} else {
+		details->caps |= AST_FAX_TECH_AUDIO;
+	}
 
 	/* create the FAX session */
 	if (!(fax = fax_session_new(details, chan, reserved, token))) {

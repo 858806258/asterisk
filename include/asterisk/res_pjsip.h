@@ -759,6 +759,8 @@ struct ast_sip_endpoint {
 	char *contact_user;
 	/*! Whether to response SDP offer with single most preferred codec. */
 	unsigned int preferred_codec_only;
+	/*! Do we allow an asymmetric RTP codec? */
+	unsigned int asymmetric_rtp_codec;
 };
 
 /*!
@@ -2273,6 +2275,16 @@ int ast_sip_sorcery_object_to_ami(const void *obj, struct ast_str **buf);
  */
 int ast_sip_format_endpoint_ami(struct ast_sip_endpoint *endpoint,
 				struct ast_sip_ami *ami, int *count);
+
+/*!
+ * \brief Formats the contact and sends over AMI.
+ *
+ * \param obj a pointer an ast_sip_contact_wrapper structure
+ * \param arg a pointer to an ast_sip_ami structure
+ * \param flags ignored
+ * \retval 0 Success, otherwise non-zero on error
+ */
+int ast_sip_format_contact_ami(void *obj, void *arg, int flags);
 
 /*!
  * \brief Format auth details for AMI.

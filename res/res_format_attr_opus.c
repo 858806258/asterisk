@@ -29,8 +29,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/module.h"
 #include "asterisk/format.h"
 #include "asterisk/logger.h"
@@ -96,33 +94,42 @@ static int opus_clone(const struct ast_format *src, struct ast_format *dst)
 	ao2_bump(attr->data);
 
 	ast_format_set_attribute_data(dst, attr);
+	ast_format_set_channel_count(dst, ast_format_get_channel_count(src));
 
 	return 0;
 }
 
 static void sdp_fmtp_get(const char *attributes, const char *name, int *attr)
 {
-	const char *kvp = "";
+	const char *kvp = attributes;
 	int val;
 
-	if (attributes && !(kvp = strstr(attributes, name))) {
+	if (ast_strlen_zero(attributes)) {
 		return;
 	}
 
-	/*
-	 * If the named attribute is not at the start of the given attributes, and
-	 * the preceding character is not a space or semicolon then it's not the
-	 * attribute we are looking for. It's an attribute with the name embedded
-	 * within it (e.g. ptime in maxptime, stereo in sprop-stereo).
+	/* This logic goes through each attribute in the fmtp line looking for the
+	 * requested named attribute.
 	 */
-	if (kvp != attributes && *(kvp - 1) != ' ' && *(kvp - 1) != ';') {
-		/* Keep searching as it might still be in the attributes string */
-		sdp_fmtp_get(strchr(kvp, ';'), name, attr);
-	/*
-	 * Otherwise it's a match, so retrieve the value and set the attribute.
-	 */
-	} else if (sscanf(kvp, "%*[^=]=%30d", &val) == 1) {
-		*attr = val;
+	while (*kvp) {
+		/* Skip any preceeding blanks as some implementations separate attributes using spaces too */
+		kvp = ast_skip_blanks(kvp);
+
+		/* If we are at at the requested attribute get its value and return */
+		if (!strncmp(kvp, name, strlen(name)) && kvp[strlen(name)] == '=') {
+			if (sscanf(kvp, "%*[^=]=%30d", &val) == 1) {
+				*attr = val;
+				break;
+			}
+		}
+
+		/* Move on to the next attribute if possible */
+		kvp = strchr(kvp, ';');
+		if (!kvp) {
+			break;
+		}
+
+		kvp++;
 	}
 }
 
@@ -147,6 +154,9 @@ static struct ast_format *opus_parse_sdp_fmtp(const struct ast_format *format, c
 	sdp_fmtp_get(attributes, CODEC_OPUS_ATTR_PTIME, &attr->ptime);
 	sdp_fmtp_get(attributes, CODEC_OPUS_ATTR_MAX_AVERAGE_BITRATE, &attr->maxbitrate);
 	sdp_fmtp_get(attributes, CODEC_OPUS_ATTR_STEREO, &attr->stereo);
+	if (attr->stereo) {
+		ast_format_set_channel_count(cloned, 2);
+	}
 	sdp_fmtp_get(attributes, CODEC_OPUS_ATTR_SPROP_STEREO, &attr->spropstereo);
 	sdp_fmtp_get(attributes, CODEC_OPUS_ATTR_CBR, &attr->cbr);
 	sdp_fmtp_get(attributes, CODEC_OPUS_ATTR_FEC, &attr->fec);
@@ -158,7 +168,8 @@ static struct ast_format *opus_parse_sdp_fmtp(const struct ast_format *format, c
 static void opus_generate_sdp_fmtp(const struct ast_format *format, unsigned int payload, struct ast_str **str)
 {
 	struct opus_attr *attr = ast_format_get_attribute_data(format);
-	int size;
+	int base_fmtp_size;
+	int original_size;
 
 	if (!attr) {
 		/*
@@ -169,7 +180,8 @@ static void opus_generate_sdp_fmtp(const struct ast_format *format, unsigned int
 		attr = &default_opus_attr;
 	}
 
-	size = ast_str_append(str, 0, "a=fmtp:%u ", payload);
+	original_size = ast_str_strlen(*str);
+	base_fmtp_size = ast_str_append(str, 0, "a=fmtp:%u ", payload);
 
 	if (CODEC_OPUS_DEFAULT_SAMPLE_RATE != attr->maxplayrate) {
 		ast_str_append(str, 0, "%s=%d;",
@@ -211,8 +223,8 @@ static void opus_generate_sdp_fmtp(const struct ast_format *format, unsigned int
 			CODEC_OPUS_ATTR_DTX, attr->dtx);
 	}
 
-	if (size == ast_str_strlen(*str)) {
-		ast_str_reset(*str);
+	if (base_fmtp_size == ast_str_strlen(*str) - original_size) {
+		ast_str_truncate(*str, original_size);
 	} else {
 		ast_str_truncate(*str, -1);
 		ast_str_append(str, 0, "\r\n");
@@ -237,6 +249,10 @@ static struct ast_format *opus_getjoint(const struct ast_format *format1, const 
 	jointformat = ast_format_clone(format1);
 	if (!jointformat) {
 		return NULL;
+	}
+
+	if (ast_format_get_channel_count(format1) == 2 || ast_format_get_channel_count(format2) == 2) {
+		ast_format_set_channel_count(jointformat, 2);
 	}
 	attr_res = ast_format_get_attribute_data(jointformat);
 

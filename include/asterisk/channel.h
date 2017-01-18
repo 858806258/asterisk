@@ -967,6 +967,16 @@ enum {
 	 * The channel is executing a subroutine or macro
 	 */
 	AST_FLAG_SUBROUTINE_EXEC = (1 << 27),
+	/*!
+	 * The channel is currently in an operation where
+	 * frames should be deferred.
+	 */
+	AST_FLAG_DEFER_FRAMES = (1 << 28),
+	/*!
+	 * The channel is currently deferring hangup frames
+	 * in addition to other frame types.
+	 */
+	AST_FLAG_DEFER_HANGUP_FRAMES = (1 << 29),
 };
 
 /*! \brief ast_bridge_config flags */
@@ -1983,6 +1993,21 @@ int ast_prod(struct ast_channel *chan);
 int ast_set_read_format_path(struct ast_channel *chan, struct ast_format *raw_format, struct ast_format *core_format);
 
 /*!
+ * \brief Set specific write path on channel.
+ * \since 13.13.0
+ *
+ * \param chan Channel to setup write path.
+ * \param core_format What the core wants to write.
+ * \param raw_format Raw write format.
+ *
+ * \pre chan is locked
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+int ast_set_write_format_path(struct ast_channel *chan, struct ast_format *core_format, struct ast_format *raw_format);
+
+/*!
  * \brief Sets read format on channel chan from capabilities
  * Set read format for channel to whichever component of "format" is best.
  * \param chan channel to change
@@ -2015,6 +2040,16 @@ int ast_set_write_format_from_cap(struct ast_channel *chan, struct ast_format_ca
  * \return Returns 0 on success, -1 on failure
  */
 int ast_set_write_format(struct ast_channel *chan, struct ast_format *format);
+
+/*!
+ * \brief Sets write format for a channel.
+ * All internal data will than be handled in an interleaved format. (needed by binaural opus)
+ *
+ * \param chan channel to change
+ * \param format format to set for writing
+ * \return Returns 0 on success, -1 on failure
+ */
+int ast_set_write_format_interleaved_stereo(struct ast_channel *chan, struct ast_format *format);
 
 /*!
  * \brief Sends text to a channel
@@ -4194,6 +4229,7 @@ typedef enum {
 } ast_alert_status_t;
 int ast_channel_alert_write(struct ast_channel *chan);
 int ast_channel_alert_writable(struct ast_channel *chan);
+ast_alert_status_t ast_channel_internal_alert_flush(struct ast_channel *chan);
 ast_alert_status_t ast_channel_internal_alert_read(struct ast_channel *chan);
 int ast_channel_internal_alert_readable(struct ast_channel *chan);
 void ast_channel_internal_alertpipe_clear(struct ast_channel *chan);
@@ -4328,6 +4364,36 @@ void ast_channel_set_manager_vars(size_t varc, char **vars);
  * \return \c NULL on error
  */
 struct varshead *ast_channel_get_manager_vars(struct ast_channel *chan);
+
+/*!
+ * \since 14.2.0
+ * \brief Return whether or not any ARI variables have been set
+ *
+ * \retval 0 if no ARI variables are expected
+ * \retval 1 if ARI variables are expected
+ */
+int ast_channel_has_ari_vars(void);
+
+/*!
+ * \since 14.2.0
+ * \brief Sets the variables to be stored in the \a ari_vars field of all
+ * snapshots.
+ * \param varc Number of variable names.
+ * \param vars Array of variable names.
+ */
+void ast_channel_set_ari_vars(size_t varc, char **vars);
+
+/*!
+ * \since 14.2.0
+ * \brief Gets the variables for a given channel, as specified by ast_channel_set_ari_vars().
+ *
+ * The returned variable list is an AO2 object, so ao2_cleanup() to free it.
+ *
+ * \param chan Channel to get variables for.
+ * \return List of channel variables.
+ * \return \c NULL on error
+ */
+struct varshead *ast_channel_get_ari_vars(struct ast_channel *chan);
 
 /*!
  * \since 12
@@ -4648,5 +4714,56 @@ int ast_channel_feature_hooks_append(struct ast_channel *chan, struct ast_bridge
  * \retval -1 on failure
  */
 int ast_channel_feature_hooks_replace(struct ast_channel *chan, struct ast_bridge_features *features);
+
+enum ast_channel_error {
+	/* Unable to determine what error occurred. */
+	AST_CHANNEL_ERROR_UNKNOWN,
+	/* Channel with this ID already exists */
+	AST_CHANNEL_ERROR_ID_EXISTS,
+};
+
+/*!
+ * \brief Get error code for latest channel operation.
+ */
+enum ast_channel_error ast_channel_errno(void);
+
+/*!
+ * \brief Retrieve the deferred read queue.
+ */
+struct ast_readq_list *ast_channel_deferred_readq(struct ast_channel *chan);
+
+/*!
+ * \brief Start deferring deferrable frames on this channel
+ *
+ * Sometimes, a channel gets entered into a mode where a "main" application
+ * is tasked with servicing frames on the channel, but that application does
+ * not need to act on those frames. However, it would be imprudent to simply
+ * drop important frames. This function can be called so that important frames
+ * will be deferred, rather than placed in the channel frame queue as normal.
+ *
+ * Hangups are an interesting frame type. Hangups will always be detectable by
+ * a reader when a channel is deferring frames. If the defer_hangups parameter
+ * is non-zero, then the hangup frame will also be duplicated and deferred, so
+ * that the next reader of the channel will get the hangup frame, too.
+ *
+ * \pre chan MUST be locked before calling
+ *
+ * \param chan The channel on which frames should be deferred
+ * \param defer_hangups Defer hangups in addition to other deferrable frames
+ */
+void ast_channel_start_defer_frames(struct ast_channel *chan, int defer_hangups);
+
+/*!
+ * \brief Stop deferring deferrable frames on this channel
+ *
+ * When it is time to stop deferring frames on the channel, all deferred frames
+ * will be queued onto the channel's read queue so that the next servicer of
+ * the channel can handle those frames as necessary.
+ *
+ * \pre chan MUST be locked before calling
+ *
+ * \param chan The channel on which to stop deferring frames.
+ */
+void ast_channel_stop_defer_frames(struct ast_channel *chan);
 
 #endif /* _ASTERISK_CHANNEL_H */

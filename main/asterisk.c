@@ -149,8 +149,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/_private.h"
 
 #undef sched_setscheduler
@@ -250,6 +248,7 @@ int daemon(int, int);  /* defined in libresolv of all places */
 #include "asterisk/format_cache.h"
 #include "asterisk/media_cache.h"
 #include "asterisk/astdb.h"
+#include "asterisk/options.h"
 
 #include "../defaults.h"
 
@@ -331,6 +330,7 @@ int ast_verb_sys_level;
 
 int option_verbose;				/*!< Verbosity level */
 int option_debug;				/*!< Debug level */
+int ast_option_pjproject_log_level;
 double ast_option_maxload;			/*!< Max load avg on system */
 int ast_option_maxcalls;			/*!< Max number of active calls */
 int ast_option_maxfiles;			/*!< Max number of open file handles (files, sockets) */
@@ -338,6 +338,7 @@ unsigned int option_dtmfminduration;		/*!< Minimum duration of DTMF. */
 #if defined(HAVE_SYSINFO)
 long option_minmemfree;				/*!< Minimum amount of free system memory - stop accepting calls if free memory falls below this watermark */
 #endif
+unsigned int ast_option_rtpptdynamic;
 
 /*! @} */
 
@@ -488,75 +489,6 @@ static struct {
 } sig_flags;
 
 #if !defined(LOW_MEMORY)
-struct registered_file {
-	AST_RWLIST_ENTRY(registered_file) list;
-	const char *file;
-};
-
-static AST_RWLIST_HEAD_STATIC(registered_files, registered_file);
-#endif /* ! LOW_MEMORY */
-
-void __ast_register_file(const char *file)
-{
-#if !defined(LOW_MEMORY)
-	struct registered_file *reg;
-
-	reg = ast_calloc(1, sizeof(*reg));
-	if (!reg) {
-		return;
-	}
-
-	reg->file = file;
-	AST_RWLIST_WRLOCK(&registered_files);
-	AST_RWLIST_INSERT_HEAD(&registered_files, reg, list);
-	AST_RWLIST_UNLOCK(&registered_files);
-#endif /* ! LOW_MEMORY */
-}
-
-void __ast_unregister_file(const char *file)
-{
-#if !defined(LOW_MEMORY)
-	struct registered_file *find;
-
-	AST_RWLIST_WRLOCK(&registered_files);
-	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&registered_files, find, list) {
-		if (!strcasecmp(find->file, file)) {
-			AST_RWLIST_REMOVE_CURRENT(list);
-			break;
-		}
-	}
-	AST_RWLIST_TRAVERSE_SAFE_END;
-	AST_RWLIST_UNLOCK(&registered_files);
-
-	if (find) {
-		ast_free(find);
-	}
-#endif /* ! LOW_MEMORY */
-}
-
-char *ast_complete_source_filename(const char *partial, int n)
-{
-#if !defined(LOW_MEMORY)
-	struct registered_file *find;
-	size_t len = strlen(partial);
-	int count = 0;
-	char *res = NULL;
-
-	AST_RWLIST_RDLOCK(&registered_files);
-	AST_RWLIST_TRAVERSE(&registered_files, find, list) {
-		if (!strncasecmp(find->file, partial, len) && ++count > n) {
-			res = ast_strdup(find->file);
-			break;
-		}
-	}
-	AST_RWLIST_UNLOCK(&registered_files);
-	return res;
-#else /* if defined(LOW_MEMORY) */
-	return NULL;
-#endif
-}
-
-#if !defined(LOW_MEMORY)
 struct thread_list_t {
 	AST_RWLIST_ENTRY(thread_list_t) list;
 	char *name;
@@ -669,6 +601,19 @@ static char *handle_show_settings(struct ast_cli_entry *e, int cmd, struct ast_c
 	ast_cli(a->fd, "  Transmit silence during rec: %s\n", ast_test_flag(&ast_options, AST_OPT_FLAG_TRANSMIT_SILENCE) ? "Enabled" : "Disabled");
 	ast_cli(a->fd, "  Generic PLC:                 %s\n", ast_test_flag(&ast_options, AST_OPT_FLAG_GENERIC_PLC) ? "Enabled" : "Disabled");
 	ast_cli(a->fd, "  Min DTMF duration::          %u\n", option_dtmfminduration);
+
+	if (ast_option_rtpptdynamic == AST_RTP_PT_LAST_REASSIGN) {
+		ast_cli(a->fd, "  RTP dynamic payload types:   %u,%u-%u\n",
+		        ast_option_rtpptdynamic,
+		        AST_RTP_PT_FIRST_DYNAMIC, AST_RTP_MAX_PT - 1);
+	} else if (ast_option_rtpptdynamic < AST_RTP_PT_LAST_REASSIGN) {
+		ast_cli(a->fd, "  RTP dynamic payload types:   %u-%u,%u-%u\n",
+		        ast_option_rtpptdynamic, AST_RTP_PT_LAST_REASSIGN,
+		        AST_RTP_PT_FIRST_DYNAMIC, AST_RTP_MAX_PT - 1);
+	} else {
+		ast_cli(a->fd, "  RTP dynamic payload types:   %u-%u\n",
+		        AST_RTP_PT_FIRST_DYNAMIC, AST_RTP_MAX_PT - 1);
+	}
 
 	ast_cli(a->fd, "\n* Subsystems\n");
 	ast_cli(a->fd, "  -------------\n");
@@ -1725,7 +1670,6 @@ static void _urg_handler(int num)
 
 static struct sigaction urg_handler = {
 	.sa_handler = _urg_handler,
-	.sa_flags = SA_RESTART,
 };
 
 static void _hup_handler(int num)
@@ -2081,8 +2025,9 @@ static void really_quit(int num, shutdown_nice_t niceness, int restart)
 	struct ast_json *json_object = NULL;
 	int run_cleanups = niceness >= SHUTDOWN_NICE;
 
-	if (run_cleanups) {
-		ast_module_shutdown();
+	if (run_cleanups && modules_shutdown()) {
+		ast_verb(0, "Some modules could not be unloaded, switching to fast shutdown\n");
+		run_cleanups = 0;
 	}
 
 	if (!restart) {
@@ -2746,7 +2691,11 @@ static void send_rasterisk_connect_commands(void)
 	}
 }
 
+#ifdef HAVE_LIBEDIT_IS_UNICODE
+static int ast_el_read_char(EditLine *editline, wchar_t *cp)
+#else
 static int ast_el_read_char(EditLine *editline, char *cp)
+#endif
 {
 	int num_read = 0;
 	int lastpos = 0;
@@ -2776,10 +2725,16 @@ static int ast_el_read_char(EditLine *editline, char *cp)
 		}
 
 		if (!ast_opt_exec && fds[1].revents) {
-			num_read = read(STDIN_FILENO, cp, 1);
+			char c = '\0';
+			num_read = read(STDIN_FILENO, &c, 1);
 			if (num_read < 1) {
 				break;
 			} else {
+#ifdef 	HAVE_LIBEDIT_IS_UNICODE
+				*cp = btowc(c);
+#else
+				*cp = c;
+#endif
 				return (num_read);
 			}
 		}
@@ -2823,7 +2778,11 @@ static int ast_el_read_char(EditLine *editline, char *cp)
 			console_print(buf);
 
 			if ((res < EL_BUF_SIZE - 1) && ((buf[res-1] == '\n') || (res >= 2 && buf[res-2] == '\n'))) {
+#ifdef 	HAVE_LIBEDIT_IS_UNICODE
+				*cp = btowc(CC_REFRESH);
+#else
 				*cp = CC_REFRESH;
+#endif
 				return(1);
 			} else {
 				lastpos = 1;
@@ -2831,7 +2790,12 @@ static int ast_el_read_char(EditLine *editline, char *cp)
 		}
 	}
 
+#ifdef 	HAVE_LIBEDIT_IS_UNICODE
+	*cp = btowc('\0');
+#else
 	*cp = '\0';
+#endif
+
 	return (0);
 }
 
@@ -3534,6 +3498,7 @@ static void ast_readconfig(void)
 
 	/* Set default value */
 	option_dtmfminduration = AST_MIN_DTMF_DURATION;
+	ast_option_rtpptdynamic = 35;
 
 	/* init with buildtime config */
 	ast_copy_string(cfg_paths.config_dir, DEFAULT_CONFIG_DIR, sizeof(cfg_paths.config_dir));
@@ -3689,6 +3654,11 @@ static void ast_readconfig(void)
 			if (sscanf(v->value, "%30u", &option_dtmfminduration) != 1) {
 				option_dtmfminduration = AST_MIN_DTMF_DURATION;
 			}
+		/* http://www.iana.org/assignments/rtp-parameters
+		 * RTP dynamic payload types start at 96 normally; extend down to 0 */
+		} else if (!strcasecmp(v->name, "rtp_pt_dynamic")) {
+			ast_parse_arg(v->value, PARSE_UINT32|PARSE_IN_RANGE,
+			              &ast_option_rtpptdynamic, 0, AST_RTP_PT_FIRST_DYNAMIC);
 		} else if (!strcasecmp(v->name, "maxcalls")) {
 			if ((sscanf(v->value, "%30d", &ast_option_maxcalls) != 1) || (ast_option_maxcalls < 0)) {
 				ast_option_maxcalls = 0;
@@ -3784,6 +3754,37 @@ static void ast_readconfig(void)
 
 	option_debug += option_debug_new;
 	option_verbose += option_verbose_new;
+
+	ast_config_destroy(cfg);
+}
+
+static void read_pjproject_startup_options(void)
+{
+	struct ast_config *cfg;
+	struct ast_variable *v;
+	struct ast_flags config_flags = { CONFIG_FLAG_NOCACHE | CONFIG_FLAG_NOREALTIME };
+
+	ast_option_pjproject_log_level = DEFAULT_PJ_LOG_MAX_LEVEL;
+
+	cfg = ast_config_load2("pjproject.conf", "" /* core, can't reload */, config_flags);
+	if (!cfg
+		|| cfg == CONFIG_STATUS_FILEUNCHANGED
+		|| cfg == CONFIG_STATUS_FILEINVALID) {
+		/* We'll have to use defaults */
+		return;
+	}
+
+	for (v = ast_variable_browse(cfg, "startup"); v; v = v->next) {
+		if (!strcasecmp(v->name, "log_level")) {
+			if (sscanf(v->value, "%30d", &ast_option_pjproject_log_level) != 1) {
+				ast_option_pjproject_log_level = DEFAULT_PJ_LOG_MAX_LEVEL;
+			} else if (ast_option_pjproject_log_level < 0) {
+				ast_option_pjproject_log_level = 0;
+			} else if (MAX_PJ_LOG_MAX_LEVEL < ast_option_pjproject_log_level) {
+				ast_option_pjproject_log_level = MAX_PJ_LOG_MAX_LEVEL;
+			}
+		}
+	}
 
 	ast_config_destroy(cfg);
 }
@@ -4544,6 +4545,7 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 
 	check_init(ast_timing_init(), "Timing");
 	check_init(ast_ssl_init(), "SSL");
+	read_pjproject_startup_options();
 	check_init(ast_pj_init(), "Embedded PJProject");
 	check_init(app_init(), "App Core");
 	check_init(devstate_init(), "Device State Core");

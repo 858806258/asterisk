@@ -848,8 +848,10 @@ int ast_parse_digest(const char *digest, struct ast_http_digest *d, int request,
 #define DO_CRASH_NORETURN
 #endif
 
+void DO_CRASH_NORETURN __ast_assert_failed(int condition, const char *condition_str,
+	const char *file, int line, const char *function);
+
 #ifdef AST_DEVMODE
-void DO_CRASH_NORETURN __ast_assert_failed(int condition, const char *condition_str, const char *file, int line, const char *function);
 #define ast_assert(a) _ast_assert(a, # a, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 static void force_inline _ast_assert(int condition, const char *condition_str, const char *file, int line, const char *function)
 {
@@ -1123,5 +1125,14 @@ int ast_file_is_readable(const char *filename);
  * \return >0 if version 1 > version 2.
  */
 int ast_compare_versions(const char *version1, const char *version2);
+
+/*
+ * \brief Test that an OS supports IPv6 Networking.
+ * \since 13.14.0
+ *
+ * \return True (non-zero) if the IPv6 supported.
+ * \return False (zero) if the OS doesn't support IPv6.
+ */
+int ast_check_ipv6(void);
 
 #endif /* _ASTERISK_UTILS_H */

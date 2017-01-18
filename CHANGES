@@ -19,6 +19,15 @@ Build System
    Asterisk built with LOW_MEMORY can now successfully load binary modules
    built without LOW_MEMORY and vice versa.
 
+ * RADIUS backends for CEL and CDR can now also be built using the radcli
+   client library, in addition to the existing support for building them
+   using either freeradius or radiusclient-ng.
+
+Core
+------------------
+ * ASTERISK_REGISTER_FILE was no longer useful and has been removed.  Sources
+   which use mtx_prof must now manually declare and initialize the variable.
+
 chan_sip
 ------------------
  * If an offer is received with optional SRTP (a media stream with RTP/AVP but
@@ -34,8 +43,166 @@ res_pjsip
    preferred codec rather than advertising all joint codec capabilities.
    This limits the other side's codec choice to exactly what we prefer.
 
+cdr_radius
+------------------
+ * To fix a memory leak the syslog channel is now empty if it has not been set
+   and used by a syslog channel in the logger.
+
+cel_radius
+------------------
+ * To fix a memory leak the syslog channel is now empty if it has not been set
+   and used by a syslog channel in the logger.
+
+RTP
+------------------
+ * New setting "rtp_pt_dynamic = 35" in asterisk.conf:
+   Normally the Dynamic RTP Payload Type numbers are 96-127, which allow just 32
+   formats. To avoid the message "No Dynamic RTP mapping available", the range
+   was changed to 35-63,96-127. This is allowed by RFC 3551 section 3. However,
+   when you use more than 32 formats and calls are not accepted by a remote
+   implementation, please report this and go back to rtp_pt_dynamic = 96.
+
+app_originate
+------------------
+ * Added support to gosub predial routines on both original channel and on the
+   created channel using options parameter (like app_dial) B() and b().  This
+   allows for adding variables to newly created channel or, e.g. setting callerid.
+
+CLI Commands
+------------------
+ * 'dialplan show' output will now show [config_file:line_number] instead of
+   [registrar] when that information is available. Currently only extensions
+   registered by pbx_config when loading/reloading will use this format.
+
+app_queue
+------------------
+ * Add 'QueueUpdate' application which can be used to track outbound calls
+   using app_queue.
+
 ------------------------------------------------------------------------------
---- Functionality changes from Asterisk 14.0.0 to Asterisk 14.1.0 ----------
+--- Functionality changes from Asterisk 14.2.0 to Asterisk 14.3.0 ------------
+------------------------------------------------------------------------------
+
+res_pjproject
+------------------
+ * Added new CLI command "pjproject set log level".  The new command allows
+   the maximum PJPROJECT log levels to be adjusted dynamically and
+   independently from the set debug logging level like many other similar
+   module debug logging commands.
+
+ * Added new companion CLI command "pjproject show log level" to allow the
+   user to see the current maximum pjproject logging level.
+
+ * Added new pjproject.conf startup section "log_level' option to set the
+   initial maximum PJPROJECT logging level.
+
+res_pjsip_outbound_registration
+------------------
+ * Statsd no longer logs redundant status PJSIP.registrations.state changes
+   for internal state transitions that don't change the reported public status
+   state.
+
+res_pjsip_registrar
+------------------
+ * The PJSIPShowRegistrationInboundContactStatuses AMI command has been added
+   to return ContactStatusDetail events as opposed to
+   PJSIPShowRegistrationsInbound which just a dumps every defined AOR.
+
+res_pjsip
+------------------
+ * Six existing contact fields have been added to the end of the
+   ContactStatusDetail AMI event:
+   ID, AuthenticateQualify, OutboundProxy, Path, QualifyFrequency and
+   QualifyTimeout.  Existing fields have not been disturbed.
+
+res_pjsip_endpoint_identifier_ip
+------------------
+ * SRV lookups can now be done on provided hostnames to determine additional
+   source IP addresses for requests. This is configurable using the
+   "srv_lookups" option on the identify and defaults to "yes".
+
+------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 14.1.0 to Asterisk 14.2.0 ------------
+------------------------------------------------------------------------------
+
+AMI
+------------------
+ * Events that reference a bridge may now contain two new optional fields:
+   - 'BridgeVideoSourceMode': the video source mode for the bridge.
+     Can be one of 'none', 'talker', or 'single'.
+   - 'BridgeVideoSource': the unique ID of the channel that is the video
+     source in this bridge, if one exists.
+
+ * A new event, BridgeVideoSourceUpdate, has been added with a class
+   authorization of CALL. The event is raised when the video source changes
+   in a multi-party mixing bridge.
+
+ARI
+------------------
+ * The bridges resource now exposes two new operations:
+   - POST /bridges/{bridgeId}/videoSource/{channelId}: Set a video source in a
+     multi-party mixing bridge
+   - DELETE /bridges/{bridgeId}/videoSource: Remove the set video source,
+     reverting to talk detection for the video source
+
+ * The bridge model in any returned response or event now contains the following
+   optional fields:
+   - video_mode: the video source mode for the bridge. Can be one of 'none',
+     'talker', or 'single'.
+   - video_source_id: the unique ID of the channel that is the video source
+     in this bridge, if one exists.
+
+ * A new event, BridgeVideoSourceChanged, has been added for bridges.
+   Applications subscribed to a bridge will receive this event when the source
+   of video changes in a mixing bridge.
+
+ * The ARI major version has been bumped. There are not any known breaking changes
+   in ARI. The major version has been bumped because otherwise we can end up with
+   overlapping version numbers between different Asterisk versions. Now each major
+   version of Asterisk will bring with it a change in the major version of ARI.
+   The ARI version in Asterisk 14 is now 2.0.0.
+
+res_pjsip
+------------------
+ * Automatic dual stack support is now implemented. Depending on DNS resolution
+   and the transport used for sending a message the SIP signaling and SDP will
+   be updated with the correct IP address and protocol version. This means that
+   the rtp_ipv6 and t38_udptl_ipv6 options no longer have any effect. The
+   res_pjsip_multihomed module has also been moved into core res_pjsip to ensure
+   that messages are updated with the correct address information in all cases.
+
+chan_pjsip
+------------------
+ * The default behavior for RTP codecs has been changed. The sending codec will
+   now match the receiving codec. This can be turned off and behavior reverted
+   to asymmetric using the "asymmetric_rtp_codec" endpoint option. If this
+   option is set then the sending and received codec are allowed to differ.
+
+CLI Commands
+------------------
+ * Three new CLI commands have been added for ARI:
+   - ari show apps:
+      Displays a listing of all registered ARI applications.
+   - ari show app <name>:
+      Display detailed information about a registered ARI application.
+   - ari set debug <name> <on|off>:
+      Enable/disable debugging of an ARI application. When debugged, verbose
+      information will be sent to the Asterisk CLI.
+
+
+Queue
+------------------
+ * A new dialplan variable, ABANDONED, is set when the call is not answered
+   by an agent.
+
+res_ari
+------------------
+ * The configuration file ari.conf now supports a channelvars option, which
+   specifies a list of channel variables to include in each channel-oriented
+   ARI event.
+
+------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 14.0.0 to Asterisk 14.1.0 ------------
 ------------------------------------------------------------------------------
 
 Build System
@@ -97,11 +264,29 @@ res_pjsip
    Note: The caller-id and redirecting number strings obtained from incoming
    SIP URI user fields are now always truncated at the first semicolon.
 
+res_rtp_asterisk
+------------------
+  * An option, ice_blacklist, has been added which allows certain subnets to be
+    excluded from local ICE candidates.
+
 app_confbridge
 ------------------
   * Some sounds played into the bridge are played asynchronously. This, for
     instance, allows a channel to immediately exit the ConfBridge without having
     to wait for a leave announcement to play.
+
+app_dial
+------------------
+ * Added the "Q" option which sets the Q.850/Q.931 cause on unanswered channels
+   when another channel answers the call.  The default of ANSWERED_ELSEWHERE
+   is unchanged.
+
+res_ari
+------------------
+ * ARI events will all now include a new field in the root of the JSON message,
+   'asterisk_id'.  This will be the unique ID for the Asterisk system
+   transmitting the event.  The value can be overridden using the 'entityid'
+   setting in asterisk.conf.
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13 to Asterisk 14 --------------------

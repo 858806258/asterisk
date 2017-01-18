@@ -233,8 +233,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "parking/res_parking.h"
 #include "asterisk/config.h"
 #include "asterisk/config_options.h"
@@ -723,7 +721,7 @@ static int parking_add_extension(struct ast_context *context, int replace, const
 	}
 
 	if (ast_add_extension2_nolock(context, replace, extension, priority, NULL, NULL,
-			application, data_duplicate, ast_free_ptr, registrar)) {
+			application, data_duplicate, ast_free_ptr, registrar, NULL, 0)) {
 		ast_free(data_duplicate);
 		return -1;
 	}

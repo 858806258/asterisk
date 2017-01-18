@@ -573,6 +573,7 @@ static void refer_blind_callback(struct ast_channel *chan, struct transfer_chann
 	pjsip_generic_string_hdr *referred_by;
 
 	static const pj_str_t str_referred_by = { "Referred-By", 11 };
+	static const pj_str_t str_referred_by_s = { "b", 1 };
 
 	pbx_builtin_setvar_helper(chan, "SIPTRANSFER", "yes");
 
@@ -651,8 +652,8 @@ static void refer_blind_callback(struct ast_channel *chan, struct transfer_chann
 
 	pbx_builtin_setvar_helper(chan, "SIPREFERRINGCONTEXT", S_OR(refer->context, NULL));
 
-	referred_by = pjsip_msg_find_hdr_by_name(refer->rdata->msg_info.msg,
-		&str_referred_by, NULL);
+	referred_by = pjsip_msg_find_hdr_by_names(refer->rdata->msg_info.msg,
+		&str_referred_by, &str_referred_by_s, NULL);
 	if (referred_by) {
 		size_t uri_size = pj_strlen(&referred_by->hvalue) + 1;
 		char *uri = ast_alloca(uri_size);
@@ -1006,6 +1007,7 @@ static int refer_incoming_refer_request(struct ast_sip_session *session, struct 
 	int response;
 
 	static const pj_str_t str_refer_to = { "Refer-To", 8 };
+	static const pj_str_t str_refer_to_s = { "r", 1 };
 	static const pj_str_t str_replaces = { "Replaces", 8 };
 
 	if (!session->channel) {
@@ -1024,7 +1026,7 @@ static int refer_incoming_refer_request(struct ast_sip_session *session, struct 
 	}
 
 	/* A Refer-To header is required */
-	refer_to = pjsip_msg_find_hdr_by_name(rdata->msg_info.msg, &str_refer_to, NULL);
+	refer_to = pjsip_msg_find_hdr_by_names(rdata->msg_info.msg, &str_refer_to, &str_refer_to_s, NULL);
 	if (!refer_to) {
 		pjsip_dlg_respond(session->inv_session->dlg, rdata, 400, NULL, NULL, NULL);
 		ast_debug(3, "Received a REFER without Refer-To on channel '%s' from endpoint '%s'\n",

@@ -253,6 +253,7 @@ ifeq ($(PJPROJECT_BUNDLED),yes)
 ASTPJ_SO_VERSION=2
 ASTPJ_LDLIBS=-L. -lasteriskpj
 
+PJDIR=$(ASTTOPDIR)/$(PJPROJECT_DIR)/source
 -include $(ASTTOPDIR)/$(PJPROJECT_DIR)/build.mak
 
 PJPROJECT_LDLIBS := \
@@ -278,15 +279,15 @@ ASTPJ_LIB:=libasteriskpj.so
 libasteriskpj.exports: $(ASTTOPDIR)/$(PJPROJECT_DIR)/pjproject.symbols
 	$(ECHO_PREFIX) echo "   [GENERATE] libasteriskpj.exports"
 ifeq ($(GNU_LD),1)
-	$(CMD_PREFIX) echo -e "{\n\tglobal:" > libasteriskpj.exports
-	$(CMD_PREFIX) sed -r -e "s/.*/\t\t$(LINKER_SYMBOL_PREFIX)&;/" $(ASTTOPDIR)/$(PJPROJECT_DIR)/pjproject.symbols >> libasteriskpj.exports
-	$(CMD_PREFIX) echo -e "\t\t$(LINKER_SYMBOL_PREFIX)ast_pj_init;\n" >> libasteriskpj.exports
-	$(CMD_PREFIX) echo -e "\tlocal:\n\t\t*;\n};" >> libasteriskpj.exports
+	$(CMD_PREFIX) echo -e "{\nglobal:" > libasteriskpj.exports
+	$(CMD_PREFIX) sed -r -e "s/.*/$(LINKER_SYMBOL_PREFIX)&;/" $(ASTTOPDIR)/$(PJPROJECT_DIR)/pjproject.symbols >> libasteriskpj.exports
+	$(CMD_PREFIX) echo -e "$(LINKER_SYMBOL_PREFIX)ast_pj_init;\n" >> libasteriskpj.exports
+	$(CMD_PREFIX) echo -e "local:\n*;\n};" >> libasteriskpj.exports
 endif
 
 $(ASTPJ_LIB).$(ASTPJ_SO_VERSION): _ASTLDFLAGS+=-Wl,-soname=$(ASTPJ_LIB) $(PJ_LDFLAGS)
 $(ASTPJ_LIB).$(ASTPJ_SO_VERSION): _ASTCFLAGS+=-fPIC -DAST_MODULE=\"asteriskpj\" -DAST_NOT_MODULE $(PJ_CFLAGS)
-$(ASTPJ_LIB).$(ASTPJ_SO_VERSION): LIBS+=$(PJPROJECT_LDLIBS) -lssl -lcrypto -luuid -lm -lrt -lpthread
+$(ASTPJ_LIB).$(ASTPJ_SO_VERSION): LIBS+=$(PJPROJECT_LDLIBS) -lssl -lcrypto -luuid -lm -lpthread $(RT_LIB)
 ifeq ($(GNU_LD),1)
     $(ASTPJ_LIB).$(ASTPJ_SO_VERSION): SO_SUPPRESS_SYMBOLS=-Wl,--version-script,libasteriskpj.exports,--warn-common
 endif
@@ -311,7 +312,7 @@ ASTPJ_LIB:=libasteriskpj.dylib
 # /lib or /usr/lib
 $(ASTPJ_LIB): _ASTLDFLAGS+=-dynamiclib -install_name $(ASTLIBDIR)/$(ASTPJ_LIB) $(PJ_LDFLAGS)
 $(ASTPJ_LIB): _ASTCFLAGS+=-fPIC -DAST_MODULE=\"asteriskpj\" $(PJ_CFLAGS) -DAST_NOT_MODULE
-$(ASTPJ_LIB): LIBS+=$(PJPROJECT_LIBS)  -lssl -lcrypto -luuid -lm -lrt -lpthread
+$(ASTPJ_LIB): LIBS+=$(PJPROJECT_LIBS)  -lssl -lcrypto -luuid -lm -lpthread $(RT_LIB)
 $(ASTPJ_LIB): SOLINK=$(DYLINK)
 
 # Special rules for building a shared library (not a dynamically loadable module)
@@ -362,10 +363,14 @@ binuninstall:
 	rm -f "$(DESTDIR)$(ASTSBINDIR)/$(MAIN_TGT)"
 	rm -f "$(DESTDIR)$(ASTSBINDIR)/rasterisk"
 ifneq ($(ASTSSL_LIB).$(ASTSSL_SO_VERSION),.)
-	rm -f "$(DESTDIR)$(ASTLIBDIR)/$(ASTSSL_LIB).$(ASTSSL_SO_VERSION)"
+#   ASTSSL_SO_VERSION may not exist on Darwin
+	rm -f "$(DESTDIR)$(ASTLIBDIR)/$(ASTSSL_LIB).$(ASTSSL_SO_VERSION)" || :
+	rm -f "$(DESTDIR)$(ASTLIBDIR)/$(ASTSSL_LIB)"
 endif
 ifneq ($(ASTPJ_LIB).$(ASTPJ_SO_VERSION),.)
-	rm -f "$(DESTDIR)$(ASTLIBDIR)/$(ASTPJ_LIB).$(ASTPJ_SO_VERSION)"
+#   ASTSSL_SO_VERSION may not exist on Darwin
+	rm -f "$(DESTDIR)$(ASTLIBDIR)/$(ASTPJ_LIB).$(ASTPJ_SO_VERSION)" || :
+	rm -f "$(DESTDIR)$(ASTLIBDIR)/$(ASTPJ_LIB)"
 endif
 ifneq ($(LDCONFIG),)
 	$(LDCONFIG) $(LDCONFIG_FLAGS) "$(DESTDIR)$(ASTLIBDIR)/"

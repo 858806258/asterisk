@@ -9,7 +9,6 @@ PJPROJECT_CONFIG_OPTS = --prefix=/opt/pjproject \
 	--disable-gsm-codec \
 	--disable-ilbc-codec \
 	--disable-l16-codec \
-	--disable-g711-codec \
 	--disable-g722-codec \
 	--disable-g7221-codec \
 	--disable-opencore-amr \
@@ -23,13 +22,16 @@ PJPROJECT_CONFIG_OPTS = --prefix=/opt/pjproject \
 	--disable-oss \
 	--disable-sdl \
 	--disable-libyuv \
-	--disable-resample \
 	--disable-ffmpeg \
 	--disable-openh264 \
 	--disable-ipp \
 	--without-external-pa \
-	--with-external-srtp
+	--without-external-srtp
+
+ifeq ($(findstring TEST_FRAMEWORK,$(MENUSELECT_CFLAGS)),)
+    PJPROJECT_CONFIG_OPTS += --disable-resample --disable-g711-codec
+endif
 
 ifeq ($(shell uname -s),Linux)
-   PJPROJECT_CONFIG_OPTS +=  --enable-epoll
+    PJPROJECT_CONFIG_OPTS +=  --enable-epoll
 endif

@@ -28,8 +28,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/callerid.h"
 #include "asterisk/channel.h"
 #include "asterisk/manager.h"
@@ -138,6 +136,17 @@ ASTERISK_REGISTER_FILE()
 			</syntax>
 			<see-also>
 				<ref type="function">CALLERID</ref>
+			</see-also>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="NewConnectedLine">
+		<managerEventInstance class="EVENT_FLAG_CALL">
+			<synopsis>Raised when a channel's connected line information is changed.</synopsis>
+			<syntax>
+				<channel_snapshot/>
+			</syntax>
+			<see-also>
+				<ref type="function">CONNECTEDLINE</ref>
 			</see-also>
 		</managerEventInstance>
 	</managerEvent>

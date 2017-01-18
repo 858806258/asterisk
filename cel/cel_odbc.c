@@ -33,8 +33,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include <sys/types.h>
 #include <time.h>
 
@@ -291,6 +289,7 @@ static int load_config(void)
 		else
 			ast_free(tableptr);
 	}
+	ast_config_destroy(cfg);
 	return res;
 }
 

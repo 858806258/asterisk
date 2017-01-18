@@ -40,8 +40,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/app.h"
 #include "asterisk/module.h"
 #include "asterisk/stasis_app.h"
@@ -253,6 +251,7 @@ static void ast_ari_channels_originate_cb(
 	case 500: /* Internal Server Error */
 	case 501: /* Not Implemented */
 	case 400: /* Invalid parameters for originating a channel. */
+	case 409: /* Channel with given unique ID already exists. */
 		is_valid = 1;
 		break;
 	default:
@@ -385,6 +384,7 @@ static void ast_ari_channels_create_cb(
 		break;
 	case 500: /* Internal Server Error */
 	case 501: /* Not Implemented */
+	case 409: /* Channel with given unique ID already exists. */
 		is_valid = 1;
 		break;
 	default:
@@ -615,6 +615,7 @@ static void ast_ari_channels_originate_with_id_cb(
 	case 500: /* Internal Server Error */
 	case 501: /* Not Implemented */
 	case 400: /* Invalid parameters for originating a channel. */
+	case 409: /* Channel with given unique ID already exists. */
 		is_valid = 1;
 		break;
 	default:

@@ -514,6 +514,7 @@ static pj_status_t registration_client_send(struct sip_outbound_registration_cli
 
 	callback_invoked = ast_threadstorage_get(&register_callback_invoked, sizeof(int));
 	if (!callback_invoked) {
+		pjsip_tx_data_dec_ref(tdata);
 		return PJ_ENOMEM;
 	}
 	*callback_invoked = 0;
@@ -567,6 +568,7 @@ static int handle_client_registration(void *data)
 			/* insert a new Supported header */
 			hdr = pjsip_supported_hdr_create(tdata->pool);
 			if (!hdr) {
+				pjsip_tx_data_dec_ref(tdata);
 				return -1;
 			}
 
@@ -625,15 +627,30 @@ static void schedule_registration(struct sip_outbound_registration_client_state 
 
 static void update_client_state_status(struct sip_outbound_registration_client_state *client_state, enum sip_outbound_registration_status status)
 {
+	const char *status_old;
+	const char *status_new;
+
 	if (client_state->status == status) {
+		/* Status state did not change at all. */
+		return;
+	}
+
+	status_old = sip_outbound_registration_status_str(client_state->status);
+	status_new = sip_outbound_registration_status_str(status);
+	client_state->status = status;
+
+	if (!strcmp(status_old, status_new)) {
+		/*
+		 * The internal status state may have changed but the status
+		 * state we tell the world did not change at all.
+		 */
 		return;
 	}
 
 	ast_statsd_log_string_va("PJSIP.registrations.state.%s", AST_STATSD_GAUGE, "-1", 1.0,
-		sip_outbound_registration_status_str(client_state->status));
+		status_old);
 	ast_statsd_log_string_va("PJSIP.registrations.state.%s", AST_STATSD_GAUGE, "+1", 1.0,
-		sip_outbound_registration_status_str(status));
-	client_state->status = status;
+		status_new);
 }
 
 /*! \brief Callback function for unregistering (potentially) and destroying state */

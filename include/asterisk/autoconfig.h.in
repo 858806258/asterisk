@@ -28,9 +28,6 @@
 /* Define to 1 if using `alloca.c'. */
 #undef C_ALLOCA
 
-/* Use the FreeRADIUS-client library */
-#undef FREERADIUS_CLIENT
-
 /* Define to 1 if anonymous semaphores work. */
 #undef HAS_WORKING_SEMAPHORE
 
@@ -239,6 +236,12 @@
 /* Define to 1 if you have the `ffsll' function. */
 #undef HAVE_FFSLL
 
+/* Define 1 if your system has fftw. */
+#undef HAVE_FFTW
+
+/* Define to 1 if you have the LIBFFTW3 library. */
+#undef HAVE_FFTW3
+
 /* Define to 1 if you have the `floor' function. */
 #undef HAVE_FLOOR
 
@@ -395,6 +398,9 @@
 
 /* Define if your system has the LIBEDIT libraries. */
 #undef HAVE_LIBEDIT
+
+/* Define if your system has the LIBEDIT_IS_UNICODE headers. */
+#undef HAVE_LIBEDIT_IS_UNICODE
 
 /* Define to 1 if you have the <libintl.h> header file. */
 #undef HAVE_LIBINTL_H
@@ -586,19 +592,25 @@
 /* Define if your system has PJPROJECT_BUNDLED */
 #undef HAVE_PJPROJECT_BUNDLED
 
-/* Define if your system has pjsip_dlg_create_uas_and_inc_lock declared. */
+/* Define to 1 if PJPROJECT has the pjsip_auth_clt_deinit support feature. */
+#undef HAVE_PJSIP_AUTH_CLT_DEINIT
+
+/* Define to 1 if PJPROJECT has the PJSIP Dialog Create UAS with Incremented
+   Lock feature. */
 #undef HAVE_PJSIP_DLG_CREATE_UAS_AND_INC_LOCK
 
-/* Define if your system has PJSIP_EVSUB_GRP_LOCK */
+/* Define to 1 if PJPROJECT has the PJSIP EVSUB Group Lock support feature. */
 #undef HAVE_PJSIP_EVSUB_GRP_LOCK
 
-/* Define if your system has pjsip_endpt_set_ext_resolver declared. */
+/* Define to 1 if PJPROJECT has the PJSIP External Resolver Support feature.
+   */
 #undef HAVE_PJSIP_EXTERNAL_RESOLVER
 
-/* Define if your system has pjsip_get_dest_info declared. */
+/* Define to 1 if PJPROJECT has the pjsip_get_dest_info support feature. */
 #undef HAVE_PJSIP_GET_DEST_INFO
 
-/* Define if your system has PJSIP_INV_SESSION_REF */
+/* Define to 1 if PJPROJECT has the PJSIP INVITE Session Reference Count
+   support feature. */
 #undef HAVE_PJSIP_INV_SESSION_REF
 
 /* Define if your system has the PJSIP_REPLACE_MEDIA_STREAM headers. */
@@ -607,10 +619,12 @@
 /* Define if your system has the PJSIP_TLS_TRANSPORT_PROTO headers. */
 #undef HAVE_PJSIP_TLS_TRANSPORT_PROTO
 
-/* Define if your system has pj_ssl_cert_load_from_files2 declared. */
+/* Define to 1 if PJPROJECT has the pj_ssl_cert_load_from_files2 support
+   feature. */
 #undef HAVE_PJ_SSL_CERT_LOAD_FROM_FILES2
 
-/* Define if your system has pjsip_tsx_create_uac2 declared. */
+/* Define to 1 if PJPROJECT has the PJSIP Transaction Group Lock Support
+   feature. */
 #undef HAVE_PJ_TRANSACTION_GRP_LOCK
 
 /* Define to 1 if your system defines IP_PKTINFO. */
@@ -1293,6 +1307,9 @@
 
 /* Define if your system needs braces around PTHREAD_ONCE_INIT */
 #undef PTHREAD_ONCE_INIT_NEEDS_BRACES
+
+/* Name of RADIUS library include header */
+#undef RADIUS_HEADER_STR
 
 /* Define to the type of arg 1 for `select'. */
 #undef SELECT_TYPE_ARG1

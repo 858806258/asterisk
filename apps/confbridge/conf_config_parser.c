@@ -29,7 +29,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
 #include "asterisk/logger.h"
 #include "asterisk/config.h"
 #include "asterisk/config_options.h"
@@ -282,6 +281,13 @@ ASTERISK_REGISTER_FILE()
 						be chosen.  Using a larger mixing interval comes at the cost of introducing
 						larger amounts of delay into the bridge.  Valid values here are 10, 20, 40,
 						or 80.
+					</para></description>
+				</configOption>
+				<configOption name="binaural_active">
+					<synopsis>If true binaural conferencing with stereo audio is active</synopsis>
+					<description><para>
+						Activates binaural mixing for a conference bridge.
+						Binaural features are disabled by default.
 					</para></description>
 				</configOption>
 				<configOption name="record_conference">
@@ -2172,6 +2178,7 @@ int conf_load_config(void)
 	aco_option_register(&cfg_info, "jitterbuffer", ACO_EXACT, bridge_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct bridge_profile, flags), USER_OPT_JITTERBUFFER);
 	/* "auto" will fail to parse as a uint, but we use PARSE_DEFAULT to set the value to 0 in that case, which is the value that auto resolves to */
 	aco_option_register(&cfg_info, "internal_sample_rate", ACO_EXACT, bridge_types, "0", OPT_UINT_T, PARSE_DEFAULT, FLDSET(struct bridge_profile, internal_sample_rate), 0);
+	aco_option_register(&cfg_info, "binaural_active", ACO_EXACT, bridge_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct bridge_profile, flags), BRIDGE_OPT_BINAURAL_ACTIVE);
 	aco_option_register_custom(&cfg_info, "mixing_interval", ACO_EXACT, bridge_types, "20", mix_interval_handler, 0);
 	aco_option_register(&cfg_info, "record_conference", ACO_EXACT, bridge_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct bridge_profile, flags), BRIDGE_OPT_RECORD_CONFERENCE);
 	aco_option_register_custom(&cfg_info, "video_mode", ACO_EXACT, bridge_types, NULL, video_mode_handler, 0);

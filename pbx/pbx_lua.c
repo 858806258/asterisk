@@ -31,8 +31,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/logger.h"
 #include "asterisk/channel.h"
 #include "asterisk/pbx.h"
@@ -62,7 +60,7 @@ static char *registrar = "pbx_lua";
  * applications might return */
 #define LUA_GOTO_DETECTED 5
 
-static char *lua_read_extensions_file(lua_State *L, long *size);
+static char *lua_read_extensions_file(lua_State *L, long *size, int *file_not_openable);
 static int lua_load_extensions(lua_State *L, struct ast_channel *chan);
 static int lua_reload_extensions(lua_State *L);
 static void lua_free_extensions(void);
@@ -1028,7 +1026,7 @@ static int lua_register_hints(lua_State *L)
 				continue;
 			}
 
-			if (ast_add_extension2(con, 0, hint_name, PRIORITY_HINT, NULL, NULL, hint_value, NULL, NULL, registrar)) {
+			if (ast_add_extension2(con, 0, hint_name, PRIORITY_HINT, NULL, NULL, hint_value, NULL, NULL, registrar, NULL, 0)) {
 				/* remove hints table, hint name, hint value,
 				 * key copy, context name, and contex table */
 				lua_pop(L, 6);
@@ -1072,12 +1070,13 @@ static int lua_extension_cmp(lua_State *L)
  *
  * \param L the lua_State to use
  * \param size a pointer to store the size of the buffer
+ * \param file_not_openable a pointer to store if config file could be opened
  *
  * \note The caller is expected to free the buffer at some point.
  *
  * \return a pointer to the buffer
  */
-static char *lua_read_extensions_file(lua_State *L, long *size)
+static char *lua_read_extensions_file(lua_State *L, long *size, int *file_not_openable)
 {
 	FILE *f;
 	int error_func;
@@ -1091,6 +1090,8 @@ static char *lua_read_extensions_file(lua_State *L, long *size)
 		lua_pushstring(L, "' for reading: ");
 		lua_pushstring(L, strerror(errno));
 		lua_concat(L, 4);
+
+		*file_not_openable = 1;
 
 		return NULL;
 	}
@@ -1201,10 +1202,14 @@ static int lua_reload_extensions(lua_State *L)
 {
 	long size = 0;
 	char *data = NULL;
+	int file_not_openable = 0;
 
 	luaL_openlibs(L);
 
-	if (!(data = lua_read_extensions_file(L, &size))) {
+	if (!(data = lua_read_extensions_file(L, &size, &file_not_openable))) {
+		if (file_not_openable) {
+			return -1;
+		}
 		return 1;
 	}
 
@@ -1623,17 +1628,24 @@ static struct ast_switch lua_switch = {
 static int load_or_reload_lua_stuff(void)
 {
 	int res = AST_MODULE_LOAD_SUCCESS;
+	int loaded = 0;
 
 	lua_State *L = luaL_newstate();
 	if (!L) {
 		ast_log(LOG_ERROR, "Error allocating lua_State, no memory\n");
-		return AST_MODULE_LOAD_DECLINE;
+		return AST_MODULE_LOAD_FAILURE;
 	}
 
-	if (lua_reload_extensions(L)) {
+	loaded = lua_reload_extensions(L);
+	if (loaded) {
 		const char *error = lua_tostring(L, -1);
 		ast_log(LOG_ERROR, "Error loading extensions.lua: %s\n", error);
-		res = AST_MODULE_LOAD_DECLINE;
+
+		if (loaded < 0) {
+			res = AST_MODULE_LOAD_DECLINE;
+		} else {
+			res = AST_MODULE_LOAD_FAILURE;
+		}
 	}
 
 	if (!res) {
@@ -1666,7 +1678,7 @@ static int load_module(void)
 
 	if (ast_register_switch(&lua_switch)) {
 		ast_log(LOG_ERROR, "Unable to register LUA PBX switch\n");
-		return AST_MODULE_LOAD_DECLINE;
+		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	return AST_MODULE_LOAD_SUCCESS;

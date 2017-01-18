@@ -31,12 +31,11 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #ifdef HAVE_PJPROJECT
 #include <pjlib.h>
 #endif
 
+#include "asterisk/options.h"
 #include "asterisk/_private.h" /* ast_pj_init() */
 
 /*!
@@ -46,6 +45,7 @@ ASTERISK_REGISTER_FILE()
 int ast_pj_init(void)
 {
 #ifdef HAVE_PJPROJECT_BUNDLED
+	pj_log_set_level(ast_option_pjproject_log_level);
 	pj_init();
 #endif
 	return 0;

@@ -33,8 +33,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/file.h"
 #include "asterisk/pbx.h"
 #include "asterisk/bridge.h"
@@ -1230,7 +1228,12 @@ static void ari_channels_handle_originate_with_id(const char *args_endpoint,
 	}
 
 	if (ast_dial_prerun(dial, other, format_cap)) {
-		ast_ari_response_alloc_failed(response);
+		if (ast_channel_errno() == AST_CHANNEL_ERROR_ID_EXISTS) {
+			ast_ari_response_error(response, 409, "Conflict",
+				"Channel with given unique ID already exists");
+		} else {
+			ast_ari_response_alloc_failed(response);
+		}
 		ast_dial_destroy(dial);
 		ast_free(origination);
 		ast_channel_cleanup(other);
@@ -1823,7 +1826,12 @@ void ast_ari_channels_create(struct ast_variable *headers,
 	ao2_cleanup(request_cap);
 
 	if (!chan_data->chan) {
-		ast_ari_response_alloc_failed(response);
+		if (ast_channel_errno() == AST_CHANNEL_ERROR_ID_EXISTS) {
+			ast_ari_response_error(response, 409, "Conflict",
+				"Channel with given unique ID already exists");
+		} else {
+			ast_ari_response_alloc_failed(response);
+		}
 		ast_channel_cleanup(originator);
 		chan_data_destroy(chan_data);
 		return;

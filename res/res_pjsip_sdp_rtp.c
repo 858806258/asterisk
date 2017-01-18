@@ -38,8 +38,7 @@
 #include <pjmedia.h>
 #include <pjlib.h>
 
-ASTERISK_REGISTER_FILE()
-
+#include "asterisk/utils.h"
 #include "asterisk/module.h"
 #include "asterisk/format.h"
 #include "asterisk/format_cap.h"
@@ -59,11 +58,8 @@ ASTERISK_REGISTER_FILE()
 /*! \brief Scheduler for RTCP purposes */
 static struct ast_sched_context *sched;
 
-/*! \brief Address for IPv4 RTP */
-static struct ast_sockaddr address_ipv4;
-
-/*! \brief Address for IPv6 RTP */
-static struct ast_sockaddr address_ipv6;
+/*! \brief Address for RTP */
+static struct ast_sockaddr address_rtp;
 
 static const char STR_AUDIO[] = "audio";
 static const int FD_AUDIO = 0;
@@ -173,11 +169,11 @@ static int rtp_check_timeout(const void *data)
 }
 
 /*! \brief Internal function which creates an RTP instance */
-static int create_rtp(struct ast_sip_session *session, struct ast_sip_session_media *session_media, unsigned int ipv6)
+static int create_rtp(struct ast_sip_session *session, struct ast_sip_session_media *session_media)
 {
 	struct ast_rtp_engine_ice *ice;
 	struct ast_sockaddr temp_media_address;
-	struct ast_sockaddr *media_address =  ipv6 ? &address_ipv6 : &address_ipv4;
+	struct ast_sockaddr *media_address =  &address_rtp;
 
 	if (session->endpoint->media.bind_rtp_to_media_address && !ast_strlen_zero(session->endpoint->media.address)) {
 		ast_sockaddr_parse(&temp_media_address, session->endpoint->media.address, 0);
@@ -388,6 +384,11 @@ static int set_caps(struct ast_sip_session *session,
 				session->dsp = NULL;
 			}
 		}
+
+		if (ast_channel_is_bridged(session->channel)) {
+			ast_channel_set_unbridged_nolock(session->channel, 1);
+		}
+
 		ast_channel_unlock(session->channel);
 	}
 
@@ -903,15 +904,17 @@ static int negotiate_incoming_sdp_stream(struct ast_sip_session *session, struct
 	}
 
 	/* Using the connection information create an appropriate RTP instance */
-	if (!session_media->rtp && create_rtp(session, session_media, ast_sockaddr_is_ipv6(addrs))) {
+	if (!session_media->rtp && create_rtp(session, session_media)) {
 		return -1;
 	}
 
 	res = setup_media_encryption(session, session_media, sdp, stream);
 	if (res) {
-		if (!session->endpoint->media.rtp.encryption_optimistic) {
+		if (!session->endpoint->media.rtp.encryption_optimistic ||
+			!pj_strncmp2(&stream->desc.transport, "RTP/SAVP", 8)) {
 			/* If optimistic encryption is disabled and crypto should have been enabled
-			 * but was not this session must fail.
+			 * but was not this session must fail. This must also fail if crypto was
+			 * required in the offer but could not be set up.
 			 */
 			return -1;
 		}
@@ -1079,7 +1082,7 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 	    (!use_override_prefs && !ast_format_cap_has_type(session->endpoint->media.codecs, media_type))) {
 		/* If no type formats are configured don't add a stream */
 		return 0;
-	} else if (!session_media->rtp && create_rtp(session, session_media, session->endpoint->media.rtp.ipv6)) {
+	} else if (!session_media->rtp && create_rtp(session, session_media)) {
 		return -1;
 	}
 
@@ -1120,8 +1123,19 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 	}
 
 	media->conn->net_type = STR_IN;
-	media->conn->addr_type = session->endpoint->media.rtp.ipv6 ? STR_IP6 : STR_IP4;
+	/* Assume that the connection will use IPv4 until proven otherwise */
+	media->conn->addr_type = STR_IP4;
 	pj_strdup2(pool, &media->conn->addr, hostip);
+
+	if (!ast_strlen_zero(session->endpoint->media.address)) {
+		pj_sockaddr ip;
+
+		if ((pj_sockaddr_parse(pj_AF_UNSPEC(), 0, &media->conn->addr, &ip) == PJ_SUCCESS) &&
+			(ip.addr.sa_family == pj_AF_INET6())) {
+			media->conn->addr_type = STR_IP6;
+		}
+	}
+
 	ast_rtp_instance_get_local_address(session_media->rtp, &addr);
 	media->desc.port = direct_media_enabled ? ast_sockaddr_port(&session_media->direct_media_addr) : (pj_uint16_t) ast_sockaddr_port(&addr);
 	media->desc.port_count = 1;
@@ -1172,10 +1186,14 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 			max_packet_size = ast_format_get_maximum_ms(format);
 		}
 		ao2_ref(format, -1);
+
+		if (media->desc.fmt_count == PJMEDIA_MAX_SDP_FMT) {
+			break;
+		}
 	}
 
 	/* Add non-codec formats */
-	if (media_type != AST_MEDIA_TYPE_VIDEO) {
+	if (media_type != AST_MEDIA_TYPE_VIDEO && media->desc.fmt_count < PJMEDIA_MAX_SDP_FMT) {
 		for (index = 1LL; index <= AST_RTP_MAX; index <<= 1) {
 			if (!(noncodec & index)) {
 				continue;
@@ -1196,6 +1214,10 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 				snprintf(tmp, sizeof(tmp), "%d 0-16", rtp_code);
 				attr = pjmedia_sdp_attr_create(pool, "fmtp", pj_cstr(&stmp, tmp));
 				media->attr[media->attr_count++] = attr;
+			}
+
+			if (media->desc.fmt_count == PJMEDIA_MAX_SDP_FMT) {
+				break;
 			}
 		}
 	}
@@ -1257,7 +1279,7 @@ static int apply_negotiated_sdp_stream(struct ast_sip_session *session, struct a
 	}
 
 	/* Create an RTP instance if need be */
-	if (!session_media->rtp && create_rtp(session, session_media, session->endpoint->media.rtp.ipv6)) {
+	if (!session_media->rtp && create_rtp(session, session_media)) {
 		return -1;
 	}
 
@@ -1493,8 +1515,11 @@ static int load_module(void)
 {
 	CHECK_PJSIP_SESSION_MODULE_LOADED();
 
-	ast_sockaddr_parse(&address_ipv4, "0.0.0.0", 0);
-	ast_sockaddr_parse(&address_ipv6, "::", 0);
+	if (ast_check_ipv6()) {
+		ast_sockaddr_parse(&address_rtp, "::", 0);
+	} else {
+		ast_sockaddr_parse(&address_rtp, "0.0.0.0", 0);
+	}
 
 	if (!(sched = ast_sched_context_create())) {
 		ast_log(LOG_ERROR, "Unable to create scheduler context.\n");
