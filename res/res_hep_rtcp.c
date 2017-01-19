@@ -53,28 +53,21 @@ static char *assign_uuid(struct ast_json *json_channel)
 		return NULL;
 	}
 
-	/* We need the channel to continue properly, so let's extract that one first */
-	struct ast_channel *chan = ast_channel_get_by_name(channel_name);
-	switch(uuid_type) {
-		case HEP_UUID_TYPE_CHANNEL:
-			uuid = ast_strdup(channel_name);
-			break;
-		case HEP_UUID_TYPE_CALL_ID:
-		default:
-			char buf[128];
-			if(ast_begins_with(channel_name, "PJSIP")) {
-				if (chan && !ast_func_read(chan, "CHANNEL(pjsip,call-id)", buf, sizeof(buf))) {
-					uuid = ast_strdup(buf);
-				}
-			} else {
-				if (chan && !ast_func_read(chan, "SIP_HEADER(call-id)", buf, sizeof(buf))) {
-					uuid = ast_strdup(buf);
-				}
-			}
-			break;
+	if (uuid_type == HEP_UUID_TYPE_CALL_ID && ast_begins_with(channel_name, "PJSIP")) {
+		struct ast_channel *chan = ast_channel_get_by_name(channel_name);
+		char buf[128];
+
+		if (chan && !ast_func_read(chan, "CHANNEL(pjsip,call-id)", buf, sizeof(buf))) {
+			uuid = ast_strdup(buf);
+		}
+
+		ast_channel_cleanup(chan);
 	}
 
-	ast_channel_cleanup(chan);
+	/* If we couldn't get the call-id or didn't want it, just use the channel name */
+	if (!uuid) {
+		uuid = ast_strdup(channel_name);
+	}
 
 	return uuid;
 }
