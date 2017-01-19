@@ -460,10 +460,13 @@ static int hep_queue_cb(void *data)
 		return 0;
 	}
 
+	/* The above code is counter productive and should be removed completely */
+	/*
 	if (ast_sockaddr_is_ipv4(&capture_info->src_addr) != ast_sockaddr_is_ipv4(&capture_info->dst_addr)) {
 		ast_log(AST_LOG_NOTICE, "Unable to send packet: Address Family mismatch between source/destination\n");
 		return -1;
 	}
+	*/
 
 	packet_len = sizeof(hg_pkt);
 
